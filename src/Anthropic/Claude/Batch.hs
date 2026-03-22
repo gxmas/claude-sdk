@@ -3,9 +3,9 @@
 {- |
 Module      : Anthropic.Claude.Batch
 Description : Batch API operations
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 Operations for the Claude Message Batches API. Batches allow
 processing multiple message requests asynchronously.

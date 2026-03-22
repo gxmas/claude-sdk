@@ -1,7 +1,7 @@
 {-|
 Module      : Anthropic.Claude
 Description : Prelude and main entry point for Claude SDK
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
 Stability   : experimental
 

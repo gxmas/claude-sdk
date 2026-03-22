@@ -3,7 +3,7 @@
 {- |
 Module      : Anthropic.Claude.Internal.Retry
 Description : Retry logic with exponential backoff
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
 Stability   : internal
 

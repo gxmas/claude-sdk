@@ -3,9 +3,9 @@
 {- |
 Module      : Anthropic.Claude.Messages
 Description : Messages API operations
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 Public API for creating messages with Claude.
 Handles request construction, HTTP execution, and response parsing.

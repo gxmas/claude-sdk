@@ -5,9 +5,9 @@
 {- |
 Module      : Anthropic.Claude.Types.Request
 Description : Request types for Claude API
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 Request types for the Messages API including CreateMessageRequest,
 Tool definitions, and helper constructors for building requests.

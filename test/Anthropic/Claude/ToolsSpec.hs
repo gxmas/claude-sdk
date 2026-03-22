@@ -9,7 +9,6 @@ import Anthropic.Claude.Types.Request (Tool(..))
 import Anthropic.Claude.Types.Response
 import Anthropic.Claude.Types.Schema
 import Data.Aeson (Value(..), object, (.=))
-import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Test.Hspec
 

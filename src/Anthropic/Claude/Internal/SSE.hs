@@ -3,7 +3,7 @@
 {- |
 Module      : Anthropic.Claude.Internal.SSE
 Description : Server-Sent Events parser
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
 Stability   : internal
 

@@ -4,9 +4,9 @@
 {- |
 Module      : Anthropic.Claude.Types.Client
 Description : Client configuration types
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 Client configuration types including retry policies and rate limit information.
 
@@ -28,10 +28,11 @@ module Anthropic.Claude.Types.Client
   , ClientEnv(..)
   ) where
 
-import {-# SOURCE #-} Anthropic.Claude.Types.Logging (LogSettings)
-import {-# SOURCE #-} Anthropic.Claude.Types.Observability (APIEvent)
 import Anthropic.Claude.Internal.JSON
+import Anthropic.Claude.Types.Common (RateLimitInfo(..))
 import Anthropic.Claude.Types.Core (ApiKey)
+import Anthropic.Claude.Types.Logging (LogSettings)
+import Anthropic.Claude.Types.Observability (APIEvent)
 import Data.Time.Clock (NominalDiffTime)
 import GHC.Generics (Generic)
 import Network.HTTP.Client (Manager)
@@ -123,26 +124,6 @@ aggressiveRetryPolicy = RetryPolicy
       , exponentialMax = 120.0   -- 2 minutes cap
       }
   }
-
--- | Rate limit information from API response headers
---
--- Per ADR 0004, rate limit metadata is carried in APIResponse wrapper.
--- All fields are Maybe because not all endpoints return all headers.
-data RateLimitInfo = RateLimitInfo
-  { rateLimitRequests :: Maybe Int       -- ^ Requests allowed in window
-  , rateLimitTokens :: Maybe Int         -- ^ Tokens allowed in window
-  , rateLimitRemaining :: Maybe Int      -- ^ Requests remaining
-  , rateLimitTokensRemaining :: Maybe Int -- ^ Tokens remaining
-  , rateLimitResetRequests :: Maybe Int  -- ^ Seconds until request limit resets
-  , rateLimitResetTokens :: Maybe Int    -- ^ Seconds until token limit resets
-  } deriving (Eq, Show, Generic)
-
-instance FromJSON RateLimitInfo where
-  parseJSON = genericParseJSON (prefixOptions "rateLimit")
-
-instance ToJSON RateLimitInfo where
-  toJSON = genericToJSON (prefixOptions "rateLimit")
-  toEncoding = genericToEncoding (prefixOptions "rateLimit")
 
 -- | Client environment (opaque type)
 --

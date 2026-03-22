@@ -8,9 +8,7 @@ import Anthropic.Claude.Types.Request
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Common
 import Anthropic.Claude.Types.Schema
-import Data.Aeson (Value(..), decode, encode, object)
-import Data.Aeson.Key (fromText)
-import qualified Data.Map.Strict as Map
+import Data.Aeson (decode, encode)
 import qualified Data.Text as T
 import Test.Hspec
 import Test.QuickCheck

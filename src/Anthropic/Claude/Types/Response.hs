@@ -4,9 +4,9 @@
 {- |
 Module      : Anthropic.Claude.Types.Response
 Description : Response types for Claude API
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 Response types for the Messages API including MessageResponse,
 Usage statistics, and the APIResponse wrapper that carries
@@ -24,7 +24,6 @@ module Anthropic.Claude.Types.Response
   ) where
 
 import Anthropic.Claude.Internal.JSON
-import Anthropic.Claude.Types.Client (RateLimitInfo)
 import Anthropic.Claude.Types.Common
 import Anthropic.Claude.Types.Core
 import Control.Exception (Exception, throwIO)

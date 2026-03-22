@@ -5,9 +5,9 @@
 {- |
 Module      : Anthropic.Claude.Types.Batch
 Description : Batch API types
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 Types for the Claude Message Batches API, which processes
 multiple message requests asynchronously.

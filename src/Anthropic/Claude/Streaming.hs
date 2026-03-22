@@ -5,9 +5,9 @@
 {- |
 Module      : Anthropic.Claude.Streaming
 Description : Public streaming API for Claude
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 High-level streaming API with resource safety. Provides bracket-style
 functions that ensure the HTTP connection is properly closed even if

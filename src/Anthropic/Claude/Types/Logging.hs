@@ -3,9 +3,9 @@
 {- |
 Module      : Anthropic.Claude.Types.Logging
 Description : Development/debugging logging for Claude SDK
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 Logging layer for development and debugging. Provides @curl -v@ style
 output of HTTP requests and responses, retry decisions, and errors.
@@ -44,7 +44,7 @@ module Anthropic.Claude.Types.Logging
   , showLevel
   ) where
 
-import Anthropic.Claude.Types.Client (RateLimitInfo(..))
+import Anthropic.Claude.Types.Common (RateLimitInfo(..))
 import Anthropic.Claude.Types.Core (RequestId(..))
 import Anthropic.Claude.Types.Error (APIError(..), ErrorDetails(..), isRetryable)
 import qualified Data.ByteString as BS

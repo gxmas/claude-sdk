@@ -5,9 +5,9 @@
 {- |
 Module      : Anthropic.Claude.Types.Error
 Description : Error types for Claude SDK
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 Error types for the Claude SDK following ADR 0002:
 - Network/infrastructure errors thrown as exceptions

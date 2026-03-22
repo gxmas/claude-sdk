@@ -5,9 +5,9 @@
 {- |
 Module      : Anthropic.Claude.Types.Stream
 Description : Streaming event types for Claude API
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 Types for Claude API streaming (Server-Sent Events). The API sends
 a sequence of typed events during streaming message creation.

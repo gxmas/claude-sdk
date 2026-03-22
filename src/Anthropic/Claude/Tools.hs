@@ -3,9 +3,9 @@
 {- |
 Module      : Anthropic.Claude.Tools
 Description : Tool use helpers
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 Helper functions for working with Claude's tool use feature.
 Provides smart constructors for defining tools, extracting

@@ -3,9 +3,9 @@
 {- |
 Module      : Anthropic.Claude.Types.Observability
 Description : Observability event types for monitoring and tracing
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 Callback-based observability layer for the Claude SDK. Users provide
 an 'EventHandler' to observe request/response lifecycle events.
@@ -31,7 +31,7 @@ module Anthropic.Claude.Types.Observability
   , emitEvent
   ) where
 
-import Anthropic.Claude.Types.Client (RateLimitInfo)
+import Anthropic.Claude.Types.Common (RateLimitInfo)
 import Anthropic.Claude.Types.Core (RequestId)
 import Anthropic.Claude.Types.Error (APIError)
 import Data.Text (Text)

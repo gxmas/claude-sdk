@@ -5,13 +5,14 @@
 {- |
 Module      : Anthropic.Claude.Types.Common
 Description : Common types shared across requests and responses
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
-Common types used in both requests and responses, including content blocks
-and cache control. This module establishes the pattern for discriminated
-union parsing used throughout the SDK.
+Common types shared across multiple modules, including content blocks,
+cache control, and rate limit information. This module breaks potential
+circular dependencies by housing types that would otherwise cause
+import cycles between Types.Client and Types.Observability/Logging.
 -}
 module Anthropic.Claude.Types.Common
   ( -- * Content Types
@@ -19,6 +20,9 @@ module Anthropic.Claude.Types.Common
   , ImageSource(..)
   , MessageContent(..)
   , CacheControl(..)
+
+    -- * Rate Limiting
+  , RateLimitInfo(..)
 
     -- * Helper Constructors
   , textBlock
@@ -180,3 +184,23 @@ toolUseBlock = ToolUseBlock
 -- | Smart constructor for tool result blocks
 toolResultBlock :: ToolCallId -> Value -> Maybe Bool -> ContentBlock
 toolResultBlock = ToolResultBlock
+
+-- | Rate limit information from API response headers
+--
+-- Per ADR 0004, rate limit metadata is carried in APIResponse wrapper.
+-- All fields are Maybe because not all endpoints return all headers.
+data RateLimitInfo = RateLimitInfo
+  { rateLimitRequests :: Maybe Int       -- ^ Requests allowed in window
+  , rateLimitTokens :: Maybe Int         -- ^ Tokens allowed in window
+  , rateLimitRemaining :: Maybe Int      -- ^ Requests remaining
+  , rateLimitTokensRemaining :: Maybe Int -- ^ Tokens remaining
+  , rateLimitResetRequests :: Maybe Int  -- ^ Seconds until request limit resets
+  , rateLimitResetTokens :: Maybe Int    -- ^ Seconds until token limit resets
+  } deriving (Eq, Show, Generic)
+
+instance FromJSON RateLimitInfo where
+  parseJSON = genericParseJSON (prefixOptions "rateLimit")
+
+instance ToJSON RateLimitInfo where
+  toJSON = genericToJSON (prefixOptions "rateLimit")
+  toEncoding = genericToEncoding (prefixOptions "rateLimit")

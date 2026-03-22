@@ -1,7 +1,7 @@
 {-|
 Module      : Anthropic.Claude.Internal.JSON
 Description : Shared JSON encoding/decoding utilities
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
 Stability   : internal
 

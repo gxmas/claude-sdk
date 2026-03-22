@@ -3,9 +3,9 @@
 {- |
 Module      : Anthropic.Claude.Client
 Description : Client convenience functions and configuration
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 High-level client functions for working with the Claude API.
 Provides retry policy management, event handler configuration,

@@ -6,9 +6,9 @@
 {- |
 Module      : Anthropic.Claude.Types.Core
 Description : Core types for Claude SDK
-Copyright   : (c) 2026 Anthropic
+Copyright   : (c) 2026 Geoffrey Noël
 License     : MIT
-Maintainer  : gnoel@anthropic.com
+Maintainer  : noel.geoff@gmail.com
 
 Core types used throughout the SDK including newtypes for API identifiers,
 enumerations for roles and stop reasons, and model ID constants.
