@@ -41,6 +41,8 @@ spec = describe "Client" $ do
             , clientRetryPolicy = originalPolicy
             , clientBaseUrl = "https://api.anthropic.com"
             , clientManager = undefined
+            , clientEventHandler = Nothing
+            , clientLogSettings = Nothing
             }
 
       let action env = do

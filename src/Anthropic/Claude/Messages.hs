@@ -19,13 +19,18 @@ import Anthropic.Claude.Internal.Retry
 import Anthropic.Claude.Types.Client
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
+import Anthropic.Claude.Types.Logging (logHttpRequest, logHttpResponse)
+import Anthropic.Claude.Types.Observability
 import Anthropic.Claude.Types.Request
 import Anthropic.Claude.Types.Response
 import qualified Data.Aeson as Aeson
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
+import Data.Time.Clock (getCurrentTime, diffUTCTime)
 import Network.HTTP.Client (RequestBody(..))
 import qualified Network.HTTP.Client as HTTP
 import Network.HTTP.Types.Method (methodPost)
+import Network.HTTP.Types.Status (statusCode)
 import UnliftIO (MonadUnliftIO, liftIO)
 
 -- | Create a message
@@ -54,12 +59,27 @@ createMessage
   => ClientEnv
   -> CreateMessageRequest
   -> m (Either APIError (APIResponse MessageResponse))
-createMessage env req = withRetry (clientRetryPolicy env) $ liftIO $ do
-  -- Build request
+createMessage env req = withRetry env $ liftIO $ do
+  let handler = clientEventHandler env
+      logSettings = clientLogSettings env
+      path = "/v1/messages"
+      methodTxt = T.pack (show methodPost)
+      pathTxt = T.pack path
+
+  -- Build request body
   let bodyBS = Aeson.encode req
-  httpReq <- buildRequest env methodPost "/v1/messages" (RequestBodyLBS bodyBS)
+
+  -- Emit request event + log
+  startTime <- getCurrentTime
+  emitEvent handler $ HttpRequest HttpRequestEvent
+    { reqMethod    = methodTxt
+    , reqPath      = pathTxt
+    , reqTimestamp = startTime
+    }
+  logHttpRequest logSettings methodTxt pathTxt bodyBS
 
   -- Execute request
+  httpReq <- buildRequest env methodPost path (RequestBodyLBS bodyBS)
   httpResp <- executeRequest (clientManager env) httpReq
 
   -- Extract request ID from headers
@@ -68,14 +88,27 @@ createMessage env req = withRetry (clientRetryPolicy env) $ liftIO $ do
         case TE.decodeUtf8' rid of
           Right txt -> Just (RequestId txt)
           Left _ -> Nothing
+      rateLimitInfo = extractRateLimitInfo headers
+      respStatus = statusCode (HTTP.responseStatus httpResp)
+      respBody = HTTP.responseBody httpResp
+
+  -- Emit response event + log
+  endTime <- getCurrentTime
+  let duration = diffUTCTime endTime startTime
+  emitEvent handler $ HttpResponse HttpResponseEvent
+    { respStatusCode    = respStatus
+    , respDuration      = duration
+    , respRequestId     = requestId
+    , respRateLimitInfo = rateLimitInfo
+    }
+  logHttpResponse logSettings methodTxt pathTxt respStatus duration
+    requestId rateLimitInfo (Just respBody)
 
   -- Parse response
   case parseResponse httpResp requestId of
     Left apiError -> pure $ Left apiError
-    Right msgResponse -> do
-      let rateLimitInfo = extractRateLimitInfo headers
-      pure $ Right $ APIResponse
-        { apiResponseBody = msgResponse
-        , apiResponseRateLimitInfo = rateLimitInfo
-        , apiResponseRequestId = requestId
-        }
+    Right msgResponse -> pure $ Right $ APIResponse
+      { apiResponseBody = msgResponse
+      , apiResponseRateLimitInfo = rateLimitInfo
+      , apiResponseRequestId = requestId
+      }

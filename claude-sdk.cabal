@@ -39,6 +39,8 @@ library
                     Anthropic.Claude.Types.Response
                     Anthropic.Claude.Types.Stream
                     Anthropic.Claude.Types.Batch
+                    Anthropic.Claude.Types.Observability
+                    Anthropic.Claude.Types.Logging
                     Anthropic.Claude.Messages
                     Anthropic.Claude.Client
                     Anthropic.Claude.Streaming
@@ -111,6 +113,8 @@ test-suite claude-sdk-test
                     Anthropic.Claude.Types.ResponseSpec
                     Anthropic.Claude.Types.StreamSpec
                     Anthropic.Claude.Types.BatchSpec
+                    Anthropic.Claude.Types.ObservabilitySpec
+                    Anthropic.Claude.Types.LoggingSpec
                     Anthropic.Claude.Internal.HTTPSpec
                     Anthropic.Claude.Internal.RetrySpec
                     Anthropic.Claude.Internal.SSESpec
@@ -135,6 +139,7 @@ test-suite claude-sdk-test
                     http-types,
                     http-client,
                     unliftio,
-                    streaming
+                    streaming,
+                    time
   default-language: Haskell2010
   ghc-options:      -threaded -rtsopts -with-rtsopts=-N

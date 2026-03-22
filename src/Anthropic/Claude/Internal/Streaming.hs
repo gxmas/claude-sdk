@@ -32,6 +32,8 @@ import Anthropic.Claude.Types.Client
 import Anthropic.Claude.Types.Common
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
+import Anthropic.Claude.Types.Logging (logHttpRequest, logHttpResponse)
+import Anthropic.Claude.Types.Observability
 import Anthropic.Claude.Types.Request
 import Anthropic.Claude.Types.Response
 import Anthropic.Claude.Types.Stream
@@ -41,6 +43,7 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
+import Data.Time.Clock (getCurrentTime, diffUTCTime)
 import Network.HTTP.Client (RequestBody(..), BodyReader, brRead, brConsume)
 import qualified Network.HTTP.Client as HTTP
 import Network.HTTP.Types.Status (statusCode)
@@ -68,23 +71,53 @@ createMessageStream
   -> CreateMessageRequest
   -> IO (HTTP.Response BodyReader, MessageStream m)
 createMessageStream env req = do
-  let streamReq = req { requestStream = Just True }
+  let handler = clientEventHandler env
+      logSettings = clientLogSettings env
+      streamReq = req { requestStream = Just True }
       bodyBS = Aeson.encode streamReq
-  httpReq <- buildRequest env methodPost "/v1/messages" (RequestBodyLBS bodyBS)
+      path = "/v1/messages"
+      method = "POST"
+      pathTxt = T.pack path
+
+  -- Emit request event + log
+  startTime <- getCurrentTime
+  emitEvent handler $ HttpRequest HttpRequestEvent
+    { reqMethod = method, reqPath = pathTxt, reqTimestamp = startTime }
+  logHttpRequest logSettings method pathTxt bodyBS
+
+  httpReq <- buildRequest env methodPost path (RequestBodyLBS bodyBS)
 
   -- Open the response (keep connection open for streaming)
   httpResp <- HTTP.responseOpen httpReq (clientManager env)
 
-  let status = HTTP.responseStatus httpResp
-  if statusCode status /= 200
+  -- Emit response event + log (no body for streaming)
+  endTime <- getCurrentTime
+  let respHeaders = HTTP.responseHeaders httpResp
+      reqId = lookup "request-id" respHeaders >>= \rid ->
+        case TE.decodeUtf8' rid of
+          Right txt -> Just (RequestId txt)
+          Left _ -> Nothing
+      rateInfo = extractRateLimitInfo respHeaders
+      respStatus = HTTP.responseStatus httpResp
+      status = statusCode respStatus
+      duration = diffUTCTime endTime startTime
+  emitEvent handler $ HttpResponse HttpResponseEvent
+    { respStatusCode    = status
+    , respDuration      = duration
+    , respRequestId     = reqId
+    , respRateLimitInfo = rateInfo
+    }
+  logHttpResponse logSettings method pathTxt status duration reqId rateInfo Nothing
+
+  if status /= 200
     then do
       -- Non-200: read entire body for error
       chunks <- brConsume (HTTP.responseBody httpResp)
       let bodyLBS = LBS.fromChunks chunks
-          errKind = errorKindFromStatus status
+          errKind = errorKindFromStatus respStatus
           apiErr = case Aeson.eitherDecode bodyLBS of
-            Left _  -> APIError errKind (ErrorDetails "unknown_error" "Failed to parse error response") (statusCode status)
-            Right d -> APIError errKind d (statusCode status)
+            Left _  -> APIError errKind (ErrorDetails "unknown_error" "Failed to parse error response") status
+            Right d -> APIError errKind d status
       let errStream = do
             S.yield (Left apiErr)
             pure defaultMessageResponse

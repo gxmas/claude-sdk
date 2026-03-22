@@ -27,15 +27,18 @@ import Anthropic.Claude.Types.Batch
 import Anthropic.Claude.Types.Client
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
+import Anthropic.Claude.Types.Logging (logHttpRequest, logHttpResponse)
+import Anthropic.Claude.Types.Observability
 import Anthropic.Claude.Types.Response (APIResponse(..))
 import Control.Concurrent (threadDelay)
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
+import Data.Time.Clock (NominalDiffTime, getCurrentTime, diffUTCTime)
 import Network.HTTP.Client (RequestBody(..))
 import qualified Network.HTTP.Client as HTTP
 import Network.HTTP.Types.Header (Header)
-import Data.Time.Clock (NominalDiffTime)
+import Network.HTTP.Types.Status (statusCode)
 import UnliftIO (MonadUnliftIO, liftIO)
 
 -- | Create a new message batch.
@@ -44,15 +47,37 @@ createBatch
   => ClientEnv
   -> CreateBatchRequest
   -> m (Either APIError (APIResponse BatchResponse))
-createBatch env req = withRetry (clientRetryPolicy env) $ liftIO $ do
+createBatch env req = withRetry env $ liftIO $ do
+  let handler = clientEventHandler env
+      logSettings = clientLogSettings env
+      path = "/v1/messages/batches"
+      method = "POST"
+      pathTxt = T.pack path
   let bodyBS = Aeson.encode req
-  httpReq <- buildRequest env "POST" "/v1/messages/batches" (RequestBodyLBS bodyBS)
+
+  startTime <- getCurrentTime
+  emitEvent handler $ HttpRequest HttpRequestEvent
+    { reqMethod = method, reqPath = pathTxt, reqTimestamp = startTime }
+  logHttpRequest logSettings method pathTxt bodyBS
+
+  httpReq <- buildRequest env "POST" path (RequestBodyLBS bodyBS)
   httpResp <- executeRequest (clientManager env) httpReq
   let headers = HTTP.responseHeaders httpResp
       reqId = extractRequestId headers
+      rateInfo = extractRateLimitInfo headers
+      status = statusCode (HTTP.responseStatus httpResp)
+      respBody = HTTP.responseBody httpResp
+
+  endTime <- getCurrentTime
+  let duration = diffUTCTime endTime startTime
+  emitEvent handler $ HttpResponse HttpResponseEvent
+    { respStatusCode = status, respDuration = duration
+    , respRequestId = reqId, respRateLimitInfo = rateInfo }
+  logHttpResponse logSettings method pathTxt status duration reqId rateInfo (Just respBody)
+
   case parseResponse httpResp reqId of
     Left err -> pure $ Left err
-    Right body -> pure $ Right $ APIResponse body (extractRateLimitInfo headers) reqId
+    Right body -> pure $ Right $ APIResponse body rateInfo reqId
 
 -- | Retrieve a batch by ID.
 retrieveBatch
@@ -60,29 +85,72 @@ retrieveBatch
   => ClientEnv
   -> BatchId
   -> m (Either APIError (APIResponse BatchResponse))
-retrieveBatch env (BatchId bid) = withRetry (clientRetryPolicy env) $ liftIO $ do
-  let path = "/v1/messages/batches/" <> T.unpack bid
+retrieveBatch env (BatchId bid) = withRetry env $ liftIO $ do
+  let handler = clientEventHandler env
+      logSettings = clientLogSettings env
+      path = "/v1/messages/batches/" <> T.unpack bid
+      method = "GET"
+      pathTxt = T.pack path
+
+  startTime <- getCurrentTime
+  emitEvent handler $ HttpRequest HttpRequestEvent
+    { reqMethod = method, reqPath = pathTxt, reqTimestamp = startTime }
+  logHttpRequest logSettings method pathTxt ""
+
   httpReq <- buildRequest env "GET" path (RequestBodyBS "")
   httpResp <- executeRequest (clientManager env) httpReq
   let headers = HTTP.responseHeaders httpResp
       reqId = extractRequestId headers
+      rateInfo = extractRateLimitInfo headers
+      status = statusCode (HTTP.responseStatus httpResp)
+      respBody = HTTP.responseBody httpResp
+
+  endTime <- getCurrentTime
+  let duration = diffUTCTime endTime startTime
+  emitEvent handler $ HttpResponse HttpResponseEvent
+    { respStatusCode = status, respDuration = duration
+    , respRequestId = reqId, respRateLimitInfo = rateInfo }
+  logHttpResponse logSettings method pathTxt status duration reqId rateInfo (Just respBody)
+
   case parseResponse httpResp reqId of
     Left err -> pure $ Left err
-    Right body -> pure $ Right $ APIResponse body (extractRateLimitInfo headers) reqId
+    Right body -> pure $ Right $ APIResponse body rateInfo reqId
 
 -- | List all batches.
 listBatches
   :: MonadUnliftIO m
   => ClientEnv
   -> m (Either APIError (APIResponse [BatchResponse]))
-listBatches env = withRetry (clientRetryPolicy env) $ liftIO $ do
-  httpReq <- buildRequest env "GET" "/v1/messages/batches" (RequestBodyBS "")
+listBatches env = withRetry env $ liftIO $ do
+  let handler = clientEventHandler env
+      logSettings = clientLogSettings env
+      path = "/v1/messages/batches"
+      method = "GET"
+      pathTxt = T.pack path
+
+  startTime <- getCurrentTime
+  emitEvent handler $ HttpRequest HttpRequestEvent
+    { reqMethod = method, reqPath = pathTxt, reqTimestamp = startTime }
+  logHttpRequest logSettings method pathTxt ""
+
+  httpReq <- buildRequest env "GET" path (RequestBodyBS "")
   httpResp <- executeRequest (clientManager env) httpReq
   let headers = HTTP.responseHeaders httpResp
       reqId = extractRequestId headers
+      rateInfo = extractRateLimitInfo headers
+      status = statusCode (HTTP.responseStatus httpResp)
+      respBody = HTTP.responseBody httpResp
+
+  endTime <- getCurrentTime
+  let duration = diffUTCTime endTime startTime
+  emitEvent handler $ HttpResponse HttpResponseEvent
+    { respStatusCode = status, respDuration = duration
+    , respRequestId = reqId, respRateLimitInfo = rateInfo }
+  logHttpResponse logSettings method pathTxt status duration reqId rateInfo (Just respBody)
+
   case parseResponse httpResp reqId of
     Left err -> pure $ Left err
-    Right body -> pure $ Right $ APIResponse body (extractRateLimitInfo headers) reqId
+    Right body -> pure $ Right $ APIResponse body rateInfo reqId
 
 -- | Cancel a batch.
 cancelBatch
@@ -90,15 +158,36 @@ cancelBatch
   => ClientEnv
   -> BatchId
   -> m (Either APIError (APIResponse BatchResponse))
-cancelBatch env (BatchId bid) = withRetry (clientRetryPolicy env) $ liftIO $ do
-  let path = "/v1/messages/batches/" <> T.unpack bid <> "/cancel"
+cancelBatch env (BatchId bid) = withRetry env $ liftIO $ do
+  let handler = clientEventHandler env
+      logSettings = clientLogSettings env
+      path = "/v1/messages/batches/" <> T.unpack bid <> "/cancel"
+      method = "POST"
+      pathTxt = T.pack path
+
+  startTime <- getCurrentTime
+  emitEvent handler $ HttpRequest HttpRequestEvent
+    { reqMethod = method, reqPath = pathTxt, reqTimestamp = startTime }
+  logHttpRequest logSettings method pathTxt ""
+
   httpReq <- buildRequest env "POST" path (RequestBodyBS "")
   httpResp <- executeRequest (clientManager env) httpReq
   let headers = HTTP.responseHeaders httpResp
       reqId = extractRequestId headers
+      rateInfo = extractRateLimitInfo headers
+      status = statusCode (HTTP.responseStatus httpResp)
+      respBody = HTTP.responseBody httpResp
+
+  endTime <- getCurrentTime
+  let duration = diffUTCTime endTime startTime
+  emitEvent handler $ HttpResponse HttpResponseEvent
+    { respStatusCode = status, respDuration = duration
+    , respRequestId = reqId, respRateLimitInfo = rateInfo }
+  logHttpResponse logSettings method pathTxt status duration reqId rateInfo (Just respBody)
+
   case parseResponse httpResp reqId of
     Left err -> pure $ Left err
-    Right body -> pure $ Right $ APIResponse body (extractRateLimitInfo headers) reqId
+    Right body -> pure $ Right $ APIResponse body rateInfo reqId
 
 -- | Poll a batch until it reaches 'Ended' status.
 --

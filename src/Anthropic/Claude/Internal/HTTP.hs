@@ -68,6 +68,8 @@ mkClientEnv apiKey = do
     , clientRetryPolicy = defaultRetryPolicy
     , clientBaseUrl = apiBaseUrl
     , clientManager = manager
+    , clientEventHandler = Nothing
+    , clientLogSettings = Nothing
     }
 
 -- | Default client environment (for testing)
@@ -77,6 +79,8 @@ defaultClientEnv apiKey manager = ClientEnv
   , clientRetryPolicy = defaultRetryPolicy
   , clientBaseUrl = apiBaseUrl
   , clientManager = manager
+  , clientEventHandler = Nothing
+  , clientLogSettings = Nothing
   }
 
 -- | Build an HTTP request with proper headers

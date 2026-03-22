@@ -28,6 +28,8 @@ module Anthropic.Claude.Types.Client
   , ClientEnv(..)
   ) where
 
+import {-# SOURCE #-} Anthropic.Claude.Types.Logging (LogSettings)
+import {-# SOURCE #-} Anthropic.Claude.Types.Observability (APIEvent)
 import Anthropic.Claude.Internal.JSON
 import Anthropic.Claude.Types.Core (ApiKey)
 import Data.Time.Clock (NominalDiffTime)
@@ -152,9 +154,12 @@ instance ToJSON RateLimitInfo where
 -- - HTTP manager for connection pooling
 -- - Default retry policy
 -- - Base URL (for testing/custom deployments)
+-- - Optional event handler for observability
 data ClientEnv = ClientEnv
   { clientApiKey :: ApiKey
   , clientRetryPolicy :: RetryPolicy
   , clientBaseUrl :: String
   , clientManager :: Manager
+  , clientEventHandler :: Maybe (APIEvent -> IO ())
+  , clientLogSettings :: Maybe LogSettings
   }

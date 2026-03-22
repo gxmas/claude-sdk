@@ -8,9 +8,21 @@ import Anthropic.Claude.Internal.Retry
 import Anthropic.Claude.Types.Client
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
+import Anthropic.Claude.Types.Observability
 import Data.IORef
 import Test.Hspec
 import UnliftIO (liftIO)
+
+-- | Build a test ClientEnv with the given RetryPolicy and optional event handler.
+testEnv :: RetryPolicy -> Maybe EventHandler -> ClientEnv
+testEnv policy handler = ClientEnv
+  { clientApiKey = ApiKey "test"
+  , clientRetryPolicy = policy
+  , clientBaseUrl = "https://api.anthropic.com"
+  , clientManager = undefined  -- Not used in retry tests
+  , clientEventHandler = handler
+  , clientLogSettings = Nothing
+  }
 
 -- Tests
 
@@ -73,20 +85,20 @@ spec = describe "Internal.Retry" $ do
 
   describe "withRetry" $ do
     it "succeeds immediately on Right" $ do
-      let policy = RetryPolicy 3 NoBackoff
-      result <- withRetry policy (pure $ Right (42 :: Int))
+      let env = testEnv (RetryPolicy 3 NoBackoff) Nothing
+      result <- withRetry env (pure $ Right (42 :: Int))
       result `shouldBe` Right 42
 
     it "fails immediately on non-retryable error" $ do
       counter <- newIORef (0 :: Int)
-      let policy = RetryPolicy 3 NoBackoff
+      let env = testEnv (RetryPolicy 3 NoBackoff) Nothing
           err = APIError InvalidRequestError (ErrorDetails "invalid_request_error" "msg") 400
           action :: IO (Either APIError Int)
           action = do
             modifyIORef' counter (+1)
             pure $ Left err
 
-      result <- withRetry policy action
+      result <- withRetry env action
       count <- readIORef counter
 
       result `shouldBe` Left err
@@ -94,7 +106,7 @@ spec = describe "Internal.Retry" $ do
 
     it "retries on retryable errors" $ do
       counter <- newIORef (0 :: Int)
-      let policy = RetryPolicy 3 NoBackoff
+      let env = testEnv (RetryPolicy 3 NoBackoff) Nothing
           err = APIError RateLimitError (ErrorDetails "rate_limit_error" "msg") 429
           action :: IO (Either APIError Int)
           action = do
@@ -104,7 +116,7 @@ spec = describe "Internal.Retry" $ do
               then pure $ Left err
               else pure $ Right (42 :: Int)
 
-      result <- withRetry policy action
+      result <- withRetry env action
       count <- readIORef counter
 
       result `shouldBe` Right 42
@@ -112,14 +124,14 @@ spec = describe "Internal.Retry" $ do
 
     it "respects max attempts limit" $ do
       counter <- newIORef (0 :: Int)
-      let policy = RetryPolicy 2 NoBackoff
+      let env = testEnv (RetryPolicy 2 NoBackoff) Nothing
           err = APIError ServerError (ErrorDetails "api_error" "msg") 500
           action :: IO (Either APIError Int)
           action = do
             modifyIORef' counter (+1)
             pure $ Left err
 
-      result <- withRetry policy action
+      result <- withRetry env action
       count <- readIORef counter
 
       result `shouldBe` Left err
@@ -127,7 +139,7 @@ spec = describe "Internal.Retry" $ do
 
     it "stops retrying once successful" $ do
       counter <- newIORef (0 :: Int)
-      let policy = RetryPolicy 5 NoBackoff
+      let env = testEnv (RetryPolicy 5 NoBackoff) Nothing
           err = APIError RateLimitError (ErrorDetails "rate_limit_error" "msg") 429
           action :: IO (Either APIError Int)
           action = do
@@ -137,22 +149,51 @@ spec = describe "Internal.Retry" $ do
               then pure $ Left err
               else pure $ Right (42 :: Int)
 
-      result <- withRetry policy action
+      result <- withRetry env action
       count <- readIORef counter
 
       result `shouldBe` Right 42
       count `shouldBe` 2  -- Should stop after success, not continue to max attempts
 
+    it "emits RetryEvent via event handler" $ do
+      eventsRef <- newIORef ([] :: [APIEvent])
+      let handler evt = modifyIORef' eventsRef (evt :)
+          env = testEnv (RetryPolicy 3 NoBackoff) (Just handler)
+          err = APIError RateLimitError (ErrorDetails "rate_limit_error" "msg") 429
+      counter <- newIORef (0 :: Int)
+      let action :: IO (Either APIError Int)
+          action = do
+            modifyIORef' counter (+1)
+            count <- readIORef counter
+            if count < 3
+              then pure $ Left err
+              else pure $ Right 42
+
+      result <- withRetry env action
+      result `shouldBe` Right 42
+
+      events <- readIORef eventsRef
+      -- Should have 2 retry events (attempt 1 and 2)
+      length events `shouldBe` 2
+      -- Events are prepended, so reverse to get chronological order
+      let eventsInOrder = reverse events
+      case eventsInOrder of
+        [evt1, evt2] -> do
+          case evt1 of
+            Retry re -> do
+              retryEvtAttempt re `shouldBe` 1
+              retryEvtMaxAttempts re `shouldBe` 3
+            _ -> expectationFailure "Expected Retry event"
+          case evt2 of
+            Retry re -> retryEvtAttempt re `shouldBe` 2
+            _ -> expectationFailure "Expected Retry event"
+        _ -> expectationFailure "Expected exactly 2 events"
+
   describe "withRetryPolicy" $ do
     it "overrides client retry policy" $ do
       let originalPolicy = RetryPolicy 3 (ExponentialBackoff 1.0 60.0)
           newPolicy = RetryPolicy 5 (ConstantBackoff 0.5)
-          mockEnv = ClientEnv
-            { clientApiKey = ApiKey "test"
-            , clientRetryPolicy = originalPolicy
-            , clientBaseUrl = "https://api.anthropic.com"
-            , clientManager = undefined  -- Not used in this test
-            }
+          mockEnv = testEnv originalPolicy Nothing
 
       -- withRetryPolicy should pass env with modified policy to action
       let action env = do

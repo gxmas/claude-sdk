@@ -19,6 +19,8 @@ module Anthropic.Claude.Types
   , module Anthropic.Claude.Types.Response
   , module Anthropic.Claude.Types.Stream
   , module Anthropic.Claude.Types.Batch
+  , module Anthropic.Claude.Types.Observability
+  , module Anthropic.Claude.Types.Logging
   ) where
 
 import Anthropic.Claude.Types.Core
@@ -30,3 +32,5 @@ import Anthropic.Claude.Types.Request
 import Anthropic.Claude.Types.Response
 import Anthropic.Claude.Types.Stream
 import Anthropic.Claude.Types.Batch
+import Anthropic.Claude.Types.Observability
+import Anthropic.Claude.Types.Logging

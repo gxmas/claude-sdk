@@ -33,6 +33,8 @@ module Anthropic.Claude.Internal.Retry
 
 import Anthropic.Claude.Types.Client
 import Anthropic.Claude.Types.Error
+import Anthropic.Claude.Types.Logging (logRetryAttempt, logApiError)
+import Anthropic.Claude.Types.Observability
 import Control.Concurrent (threadDelay)
 import Data.Time.Clock (NominalDiffTime)
 import UnliftIO (MonadUnliftIO, liftIO)
@@ -44,19 +46,24 @@ import UnliftIO (MonadUnliftIO, liftIO)
 -- - 500 Server Error
 -- - 529 Overloaded
 --
--- Uses the backoff strategy from RetryPolicy to calculate delays.
+-- Uses the backoff strategy from the 'ClientEnv' retry policy to
+-- calculate delays. Emits 'RetryEvent' via the event handler before
+-- each retry delay.
 --
 -- Example:
 -- @
--- result <- withRetry defaultRetryPolicy $ createMessage env req
+-- result <- withRetry env $ createMessage env req
 -- @
 withRetry
   :: MonadUnliftIO m
-  => RetryPolicy
+  => ClientEnv
   -> m (Either APIError a)
   -> m (Either APIError a)
-withRetry policy action = go 0
+withRetry env action = go 0
   where
+    policy = clientRetryPolicy env
+    handler = clientEventHandler env
+    logSettings = clientLogSettings env
     maxAttempts = retryMaxAttempts policy
 
     go attempt
@@ -68,9 +75,19 @@ withRetry policy action = go 0
             Left err
               | shouldRetryError err && attempt < maxAttempts -> do
                   let delay = calculateBackoff policy attempt
-                  liftIO $ threadDelay (microSeconds delay)
+                  liftIO $ do
+                    emitEvent handler $ Retry RetryEvent
+                      { retryEvtError       = err
+                      , retryEvtAttempt     = attempt + 1
+                      , retryEvtMaxAttempts = maxAttempts
+                      , retryEvtBackoff     = delay
+                      }
+                    logRetryAttempt logSettings err (attempt + 1) maxAttempts delay
+                    threadDelay (microSeconds delay)
                   go (attempt + 1)
-              | otherwise -> pure $ Left err
+              | otherwise -> do
+                  liftIO $ logApiError logSettings err
+                  pure $ Left err
 
     -- Convert NominalDiffTime to microseconds for threadDelay
     microSeconds :: NominalDiffTime -> Int
