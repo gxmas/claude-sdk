@@ -1,0 +1,9 @@
+dist-newstyle/
+.ghc.environment.*
+*.hi
+*.o
+cabal.project.local
+cabal.project.local~
+*.swp
+*~
+.DS_Store

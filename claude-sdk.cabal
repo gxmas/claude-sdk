@@ -1,0 +1,62 @@
+cabal-version:      3.0
+name:               claude-sdk
+version:            0.1.0.0
+license:            MIT
+license-file:       LICENSE
+author:             Geoffrey Noel
+maintainer:         gnoel@anthropic.com
+category:           Network
+synopsis:           Production-grade Haskell SDK for Claude API
+description:
+  A comprehensive, type-safe Haskell SDK for building Claude client applications.
+  Follows architectural best practices with streaming support, retry policies,
+  and full API coverage.
+
+common warnings
+  ghc-options:      -Wall
+                    -Wcompat
+                    -Wincomplete-record-updates
+                    -Wincomplete-uni-patterns
+                    -Wredundant-constraints
+  default-language: Haskell2010
+
+library
+  import:           warnings
+  exposed-modules:  Anthropic.Claude
+                    Anthropic.Claude.Types
+                    Anthropic.Claude.Types.Core
+                    Anthropic.Claude.Types.Common
+                    Anthropic.Claude.Types.Error
+                    Anthropic.Claude.Types.Client
+  other-modules:    Anthropic.Claude.Internal.JSON
+  hs-source-dirs:   src
+  build-depends:    base >=4.16 && <5,
+                    aeson >=2.1,
+                    text >=1.2,
+                    bytestring >=0.11,
+                    time >=1.11,
+                    containers >=0.6,
+                    exceptions >=0.10,
+                    http-types >=0.12
+  default-language: Haskell2010
+
+test-suite claude-sdk-test
+  import:           warnings
+  type:             exitcode-stdio-1.0
+  main-is:          Spec.hs
+  other-modules:    Anthropic.Claude.Types.CoreSpec
+                    Anthropic.Claude.Types.CommonSpec
+                    Anthropic.Claude.Types.ErrorSpec
+                    Anthropic.Claude.Types.ClientSpec
+  hs-source-dirs:   test
+  build-tool-depends: hspec-discover:hspec-discover >=2.10
+  build-depends:    base >=4.16 && <5,
+                    claude-sdk,
+                    hspec >=2.10,
+                    QuickCheck >=2.14,
+                    aeson,
+                    text,
+                    bytestring,
+                    http-types
+  default-language: Haskell2010
+  ghc-options:      -threaded -rtsopts -with-rtsopts=-N
