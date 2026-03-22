@@ -9,8 +9,8 @@ sends to Claude API, and prints the response or error.
 module Main (main) where
 
 import Anthropic.Claude.Types
+import Anthropic.Claude.Client (mkClientEnv, withLogger)
 import Anthropic.Claude.Messages
-import Anthropic.Claude.Internal.HTTP
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import System.Environment (lookupEnv)
@@ -25,8 +25,8 @@ main = do
     Nothing -> die "Error: ANTHROPIC_API_KEY environment variable not set"
     Just key -> pure $ ApiKey (T.pack key)
 
-  -- Create client environment
-  env <- mkClientEnv apiKey
+  -- Create client environment with debug logging
+  env <- withLogger debugLogger <$> mkClientEnv apiKey
 
   -- Get prompt from user
   putStr "Enter your prompt: "

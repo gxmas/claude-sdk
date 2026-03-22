@@ -63,7 +63,7 @@ createMessage env req = withRetry env $ liftIO $ do
   let handler = clientEventHandler env
       logSettings = clientLogSettings env
       path = "/v1/messages"
-      methodTxt = T.pack (show methodPost)
+      methodTxt = "POST"
       pathTxt = T.pack path
 
   -- Build request body
