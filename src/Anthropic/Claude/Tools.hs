@@ -27,28 +27,26 @@ import Anthropic.Claude.Types.Common
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Request (Tool(..))
 import Anthropic.Claude.Types.Response (MessageResponse(..))
+import Anthropic.Claude.Types.Schema
 import Data.Aeson (Value(..))
 import Data.Text (Text)
 
--- | Define a tool with name, description, and JSON Schema for input.
+-- | Define a tool with name, description, and properties.
+--
+-- Constructs a 'Tool' with @type: "custom"@, wrapping the properties
+-- in an object schema.
 --
 -- Example:
 -- @
 -- let weatherTool = defineTool
 --       "get_weather"
 --       "Get the current weather for a location"
---       (object [ "type" .= "object"
---               , "properties" .= object
---                   [ "location" .= object
---                       [ "type" .= "string"
---                       , "description" .= "City and state, e.g. San Francisco, CA"
---                       ]
---                   ]
---               , "required" .= ["location"]
---               ])
+--       [ required "location"
+--           (withDescription "City and state, e.g. San Francisco, CA" stringSchema)
+--       ]
 -- @
-defineTool :: Text -> Text -> Value -> Tool
-defineTool = Tool
+defineTool :: Text -> Text -> [Property] -> Tool
+defineTool name desc props = Tool name (Just desc) (objectSchema props) Nothing
 
 -- | Extract all tool use blocks from a message response.
 --

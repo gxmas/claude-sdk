@@ -27,18 +27,11 @@ main = do
 
   env <- mkClientEnv apiKey
 
-  -- Define a weather tool
-  let weatherSchema = object
-        [ "type" .= ("object" :: T.Text)
-        , "properties" .= object
-            [ "location" .= object
-                [ "type" .= ("string" :: T.Text)
-                , "description" .= ("City and state" :: T.Text)
-                ]
-            ]
-        , "required" .= (["location"] :: [T.Text])
+  -- Define a weather tool using type-safe schema combinators
+  let weatherTool = defineTool "get_weather" "Get the current weather"
+        [ required "location"
+            (withDescription "City and state" stringSchema)
         ]
-      weatherTool = defineTool "get_weather" "Get the current weather" weatherSchema
 
   -- Send request with tool
   let req = (mkRequest claude4Sonnet [userMsg "What's the weather in San Francisco?"] 1024)

@@ -29,6 +29,8 @@ module Anthropic.Claude.Types.Request
 import Anthropic.Claude.Internal.JSON
 import Anthropic.Claude.Types.Common
 import Anthropic.Claude.Types.Core
+import Anthropic.Claude.Types.Schema (JsonSchema)
+import Data.Aeson.Types (Parser)
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -48,18 +50,36 @@ instance ToJSON Message where
   toEncoding = genericToEncoding (prefixOptions "message")
 
 -- | Tool definition for tool use
+--
+-- Per the official Anthropic schema, tools always have @type: "custom"@,
+-- an optional description, a required input_schema, and optional cache_control.
 data Tool = Tool
-  { toolName :: Text
-  , toolDescription :: Text
-  , toolInputSchema :: Value
-  } deriving (Eq, Show, Generic)
+  { toolName         :: Text
+  , toolDescription  :: Maybe Text
+  , toolInputSchema  :: JsonSchema
+  , toolCacheControl :: Maybe CacheControl
+  } deriving (Eq, Show)
 
 instance FromJSON Tool where
-  parseJSON = genericParseJSON (prefixOptions "tool")
+  parseJSON = withObject "Tool" $ \o -> do
+    mType <- o .:? "type" :: Parser (Maybe Text)
+    case mType of
+      Just t | t /= "custom" -> fail $ "Expected tool type \"custom\", got: " <> T.unpack t
+      _ -> pure ()
+    Tool
+      <$> o .:  "name"
+      <*> o .:? "description"
+      <*> o .:  "input_schema"
+      <*> o .:? "cache_control"
 
 instance ToJSON Tool where
-  toJSON = genericToJSON (prefixOptions "tool")
-  toEncoding = genericToEncoding (prefixOptions "tool")
+  toJSON (Tool name desc schema cc) = object $ catMaybes
+    [ Just ("type"         .= ("custom" :: Text))
+    , Just ("name"         .= name)
+    , ("description"   .=) <$> desc
+    , Just ("input_schema" .= schema)
+    , ("cache_control" .=) <$> cc
+    ]
 
 -- | Tool choice strategy
 data ToolChoice

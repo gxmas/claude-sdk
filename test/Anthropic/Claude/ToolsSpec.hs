@@ -7,7 +7,9 @@ import Anthropic.Claude.Types.Common
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Request (Tool(..))
 import Anthropic.Claude.Types.Response
+import Anthropic.Claude.Types.Schema
 import Data.Aeson (Value(..), object, (.=))
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Test.Hspec
 
@@ -15,18 +17,24 @@ spec :: Spec
 spec = describe "Tools" $ do
 
   describe "defineTool" $ do
-    it "creates a Tool with given name, description, and schema" $ do
-      let schema = object
-            [ "type" .= ("object" :: T.Text)
-            , "properties" .= object
-                [ "location" .= object
-                    [ "type" .= ("string" :: T.Text) ]
-                ]
+    it "creates a Tool with given name, description, and properties" $ do
+      let tool = defineTool "get_weather" "Get weather for a location"
+            [ required "location"
+                (withDescription "City and state, e.g. San Francisco, CA" stringSchema)
             ]
-          tool = defineTool "get_weather" "Get weather for a location" schema
       toolName tool `shouldBe` "get_weather"
-      toolDescription tool `shouldBe` "Get weather for a location"
-      toolInputSchema tool `shouldBe` schema
+      toolDescription tool `shouldBe` Just "Get weather for a location"
+      schemaType (toolInputSchema tool) `shouldBe` Just (SingleType ObjectType)
+      schemaRequired (toolInputSchema tool) `shouldBe` Just ["location"]
+      toolCacheControl tool `shouldBe` Nothing
+
+    it "wraps description in Just" $ do
+      let tool = defineTool "test" "desc" []
+      toolDescription tool `shouldBe` Just "desc"
+
+    it "sets cache_control to Nothing" $ do
+      let tool = defineTool "test" "desc" []
+      toolCacheControl tool `shouldBe` Nothing
 
   describe "extractToolCalls" $ do
     it "extracts tool use blocks from response" $ do

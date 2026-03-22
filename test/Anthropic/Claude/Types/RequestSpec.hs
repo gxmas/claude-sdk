@@ -7,8 +7,10 @@ module Anthropic.Claude.Types.RequestSpec (spec) where
 import Anthropic.Claude.Types.Request
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.Schema
 import Data.Aeson (Value(..), decode, encode, object)
 import Data.Aeson.Key (fromText)
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Test.Hspec
 import Test.QuickCheck
@@ -23,13 +25,33 @@ instance Arbitrary Message where
     <$> elements [User, Assistant]
     <*> (TextContent <$> genText)
 
+instance Arbitrary SchemaType where
+  arbitrary = elements
+    [StringType, NumberType, IntegerType, BooleanType, NullType]
+
+instance Arbitrary JsonSchema where
+  arbitrary = oneof
+    [ pure stringSchema
+    , pure numberSchema
+    , pure integerSchema
+    , pure booleanSchema
+    , objectSchema <$> listOf1 genProperty
+    ]
+    where
+      genProperty = do
+        name <- genText
+        isReq <- arbitrary
+        pure $ Property name stringSchema isReq
+
+instance Arbitrary CacheControl where
+  arbitrary = pure $ CacheControl "ephemeral"
+
 instance Arbitrary Tool where
   arbitrary = Tool
     <$> genText
-    <*> genText
-    <*> genValue
-    where
-      genValue = object <$> listOf ((,) <$> (fromText <$> genText) <*> (String <$> genText))
+    <*> oneof [Just <$> genText, pure Nothing]
+    <*> arbitrary
+    <*> oneof [Just <$> arbitrary, pure Nothing]
 
 instance Arbitrary ToolChoice where
   arbitrary = oneof
@@ -58,10 +80,40 @@ spec = describe "Types.Request" $ do
     it "round-trips through JSON" $ property $
       \(tool :: Tool) -> decode (encode tool) === Just tool
 
+    it "serializes type as custom" $ do
+      let tool = Tool "test" (Just "A test tool") stringSchema Nothing
+          jsonText = T.pack $ show $ encode tool
+      T.isInfixOf "custom" jsonText `shouldBe` True
+
     it "uses snake_case for field names" $ do
-      let tool = Tool "test" "A test tool" Null
-      let encoded = encode tool
-      T.isInfixOf "input_schema" (T.pack $ show encoded) `shouldBe` True
+      let tool = Tool "test" (Just "A test tool") stringSchema Nothing
+          jsonText = T.pack $ show $ encode tool
+      T.isInfixOf "input_schema" jsonText `shouldBe` True
+
+    it "omits description when Nothing" $ do
+      let tool = Tool "test" Nothing stringSchema Nothing
+          jsonText = T.pack $ show $ encode tool
+      T.isInfixOf "description" jsonText `shouldBe` False
+
+    it "omits cache_control when Nothing" $ do
+      let tool = Tool "test" (Just "desc") stringSchema Nothing
+          jsonText = T.pack $ show $ encode tool
+      T.isInfixOf "cache_control" jsonText `shouldBe` False
+
+    it "includes cache_control when present" $ do
+      let tool = Tool "test" (Just "desc") stringSchema (Just (CacheControl "ephemeral"))
+          jsonText = T.pack $ show $ encode tool
+      T.isInfixOf "cache_control" jsonText `shouldBe` True
+
+    it "parses tool without type field" $ do
+      let json = "{\"name\":\"test\",\"input_schema\":{\"type\":\"string\"}}"
+      case decode json :: Maybe Tool of
+        Just t  -> toolName t `shouldBe` "test"
+        Nothing -> expectationFailure "Failed to parse tool without type field"
+
+    it "rejects non-custom type" $ do
+      let json = "{\"type\":\"server\",\"name\":\"test\",\"input_schema\":{}}"
+      (decode json :: Maybe Tool) `shouldBe` Nothing
 
   describe "ToolChoice" $ do
     it "encodes AutoChoice correctly" $
