@@ -29,11 +29,16 @@ module Anthropic.Claude.Types.Common
   , imageBlock
   , toolUseBlock
   , toolResultBlock
+
+    -- * Cache Control Helpers
+  , withCacheControl
+  , ephemeralCacheControl
   ) where
 
 import Anthropic.Claude.Internal.JSON
 import Anthropic.Claude.Types.Core
 import Control.Applicative ((<|>))
+import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
@@ -98,19 +103,23 @@ instance ToJSON ImageSource where
 data ContentBlock
   = TextBlock
       { blockText :: Text                    -- ^ Text content
+      , blockCacheControl :: Maybe CacheControl -- ^ Cache control for prompt caching
       }
   | ImageBlock
       { blockSource :: ImageSource           -- ^ Image source (base64 or URL)
+      , blockCacheControl :: Maybe CacheControl -- ^ Cache control for prompt caching
       }
   | ToolUseBlock
       { blockToolUseId :: ToolCallId         -- ^ Unique identifier for this tool use
       , blockToolName :: Text                -- ^ Name of the tool to call
       , blockToolInput :: Value              -- ^ JSON input for the tool
+      , blockCacheControl :: Maybe CacheControl -- ^ Cache control for prompt caching
       }
   | ToolResultBlock
       { blockToolResultId :: ToolCallId      -- ^ ID matching the ToolUseBlock
       , blockToolResult :: Value             -- ^ Tool execution result (JSON)
       , blockIsError :: Maybe Bool           -- ^ Whether the tool call resulted in an error
+      , blockCacheControl :: Maybe CacheControl -- ^ Cache control for prompt caching
       }
   deriving (Eq, Show, Generic)
 
@@ -118,38 +127,47 @@ instance FromJSON ContentBlock where
   parseJSON = withDiscriminator "type" $ \typeField obj -> case typeField of
     "text" -> TextBlock
       <$> obj .: "text"
+      <*> obj .:? "cache_control"
     "image" -> ImageBlock
       <$> obj .: "source"
+      <*> obj .:? "cache_control"
     "tool_use" -> ToolUseBlock
       <$> obj .: "id"
       <*> obj .: "name"
       <*> obj .: "input"
+      <*> obj .:? "cache_control"
     "tool_result" -> ToolResultBlock
       <$> obj .: "tool_use_id"
       <*> obj .: "content"
       <*> obj .:? "is_error"
+      <*> obj .:? "cache_control"
     other -> fail $ "Unknown ContentBlock type: " <> T.unpack other
 
 instance ToJSON ContentBlock where
-  toJSON (TextBlock txt) = object
-    [ "type" .= ("text" :: Text)
-    , "text" .= txt
+  toJSON (TextBlock txt cc) = object $ catMaybes
+    [ Just ("type" .= ("text" :: Text))
+    , Just ("text" .= txt)
+    , ("cache_control" .=) <$> cc
     ]
-  toJSON (ImageBlock src) = object
-    [ "type" .= ("image" :: Text)
-    , "source" .= src
+  toJSON (ImageBlock src cc) = object $ catMaybes
+    [ Just ("type" .= ("image" :: Text))
+    , Just ("source" .= src)
+    , ("cache_control" .=) <$> cc
     ]
-  toJSON (ToolUseBlock toolId name input) = object
-    [ "type" .= ("tool_use" :: Text)
-    , "id" .= toolId
-    , "name" .= name
-    , "input" .= input
+  toJSON (ToolUseBlock toolId name input cc) = object $ catMaybes
+    [ Just ("type" .= ("tool_use" :: Text))
+    , Just ("id" .= toolId)
+    , Just ("name" .= name)
+    , Just ("input" .= input)
+    , ("cache_control" .=) <$> cc
     ]
-  toJSON (ToolResultBlock toolId result isErr) = object $
-    [ "type" .= ("tool_result" :: Text)
-    , "tool_use_id" .= toolId
-    , "content" .= result
-    ] ++ maybe [] (\e -> ["is_error" .= e]) isErr
+  toJSON (ToolResultBlock toolId result isErr cc) = object $ catMaybes
+    [ Just ("type" .= ("tool_result" :: Text))
+    , Just ("tool_use_id" .= toolId)
+    , Just ("content" .= result)
+    , ("is_error" .=) <$> isErr
+    , ("cache_control" .=) <$> cc
+    ]
 
 -- | Message content (either text or list of content blocks)
 --
@@ -170,20 +188,28 @@ instance ToJSON MessageContent where
 
 -- | Smart constructor for text blocks
 textBlock :: Text -> ContentBlock
-textBlock = TextBlock
+textBlock t = TextBlock t Nothing
 
 -- | Smart constructor for image blocks from base64 data
 imageBlock :: Text -> Text -> ContentBlock
 imageBlock mediaType b64Data =
-  ImageBlock (Base64Source mediaType b64Data)
+  ImageBlock (Base64Source mediaType b64Data) Nothing
 
 -- | Smart constructor for tool use blocks
 toolUseBlock :: ToolCallId -> Text -> Value -> ContentBlock
-toolUseBlock = ToolUseBlock
+toolUseBlock tid n i = ToolUseBlock tid n i Nothing
 
 -- | Smart constructor for tool result blocks
 toolResultBlock :: ToolCallId -> Value -> Maybe Bool -> ContentBlock
-toolResultBlock = ToolResultBlock
+toolResultBlock tid r e = ToolResultBlock tid r e Nothing
+
+-- | Add cache control to any content block
+withCacheControl :: CacheControl -> ContentBlock -> ContentBlock
+withCacheControl cc block = block { blockCacheControl = Just cc }
+
+-- | The "ephemeral" cache control value (currently the only supported type)
+ephemeralCacheControl :: CacheControl
+ephemeralCacheControl = CacheControl "ephemeral"
 
 -- | Rate limit information from API response headers
 --

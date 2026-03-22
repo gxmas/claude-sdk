@@ -25,7 +25,7 @@ instance Arbitrary ContentDelta where
     ]
 
 instance Arbitrary Usage where
-  arbitrary = Usage <$> choose (0, 10000) <*> choose (0, 10000)
+  arbitrary = Usage <$> choose (0, 10000) <*> choose (0, 10000) <*> pure Nothing <*> pure Nothing
 
 instance Arbitrary DeltaBody where
   arbitrary = DeltaBody

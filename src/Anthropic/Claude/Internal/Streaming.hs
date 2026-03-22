@@ -203,7 +203,7 @@ updateMessageResponse _ resp = resp
 
 -- | Append text to a TextBlock.
 appendText :: T.Text -> ContentBlock -> ContentBlock
-appendText txt (TextBlock existing) = TextBlock (existing <> txt)
+appendText txt (TextBlock existing cc) = TextBlock (existing <> txt) cc
 appendText _ block = block
 
 -- | Update the content block at a specific index.
@@ -222,5 +222,5 @@ defaultMessageResponse = MessageResponse
   , responseModel        = ModelId ""
   , responseStopReason   = Nothing
   , responseStopSequence = Nothing
-  , responseUsage        = Usage 0 0
+  , responseUsage        = Usage 0 0 Nothing Nothing
   }

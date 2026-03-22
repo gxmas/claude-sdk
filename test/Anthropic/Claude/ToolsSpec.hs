@@ -41,10 +41,10 @@ spec = describe "Tools" $ do
           input = object ["location" .= ("SF" :: T.Text)]
           resp = MessageResponse
             (MessageId "msg_1") "message" Assistant
-            [ TextBlock "I'll check the weather."
-            , ToolUseBlock toolId "get_weather" input
+            [ TextBlock "I'll check the weather." Nothing
+            , ToolUseBlock toolId "get_weather" input Nothing
             ]
-            (ModelId "claude") (Just ToolUse) Nothing (Usage 10 20)
+            (ModelId "claude") (Just ToolUse) Nothing (Usage 10 20 Nothing Nothing)
           calls = extractToolCalls resp
       length calls `shouldBe` 1
       let (cid, name, inp) = head calls
@@ -55,18 +55,18 @@ spec = describe "Tools" $ do
     it "extracts multiple tool calls" $ do
       let resp = MessageResponse
             (MessageId "msg_1") "message" Assistant
-            [ ToolUseBlock (ToolCallId "t1") "tool_a" Null
-            , TextBlock "between"
-            , ToolUseBlock (ToolCallId "t2") "tool_b" Null
+            [ ToolUseBlock (ToolCallId "t1") "tool_a" Null Nothing
+            , TextBlock "between" Nothing
+            , ToolUseBlock (ToolCallId "t2") "tool_b" Null Nothing
             ]
-            (ModelId "claude") (Just ToolUse) Nothing (Usage 10 20)
+            (ModelId "claude") (Just ToolUse) Nothing (Usage 10 20 Nothing Nothing)
       length (extractToolCalls resp) `shouldBe` 2
 
     it "returns empty list when no tool calls" $ do
       let resp = MessageResponse
             (MessageId "msg_1") "message" Assistant
-            [TextBlock "Just text"]
-            (ModelId "claude") (Just EndTurn) Nothing (Usage 10 20)
+            [TextBlock "Just text" Nothing]
+            (ModelId "claude") (Just EndTurn) Nothing (Usage 10 20 Nothing Nothing)
       extractToolCalls resp `shouldBe` []
 
   describe "buildToolResult" $ do
@@ -74,11 +74,11 @@ spec = describe "Tools" $ do
       let toolId = ToolCallId "toolu_123"
           result = object ["temperature" .= (72 :: Int)]
           block = buildToolResult toolId result
-      block `shouldBe` ToolResultBlock toolId result (Just False)
+      block `shouldBe` ToolResultBlock toolId result (Just False) Nothing
 
   describe "buildToolError" $ do
     it "creates ToolResultBlock with is_error=True" $ do
       let toolId = ToolCallId "toolu_123"
           errMsg = String "Location not found"
           block = buildToolError toolId errMsg
-      block `shouldBe` ToolResultBlock toolId errMsg (Just True)
+      block `shouldBe` ToolResultBlock toolId errMsg (Just True) Nothing

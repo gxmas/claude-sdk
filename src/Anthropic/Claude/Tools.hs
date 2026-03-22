@@ -68,7 +68,7 @@ extractToolCalls resp =
   , isToolUse block
   ]
   where
-    isToolUse (ToolUseBlock _ _ _) = True
+    isToolUse (ToolUseBlock _ _ _ _) = True
     isToolUse _ = False
 
 -- | Build a tool result content block for a successful tool execution.
@@ -78,7 +78,7 @@ extractToolCalls resp =
 -- let result = buildToolResult toolCallId (object ["temperature" .= (72 :: Int)])
 -- @
 buildToolResult :: ToolCallId -> Value -> ContentBlock
-buildToolResult toolId result = ToolResultBlock toolId result (Just False)
+buildToolResult toolId result = ToolResultBlock toolId result (Just False) Nothing
 
 -- | Build a tool result content block for a failed tool execution.
 --
@@ -87,4 +87,4 @@ buildToolResult toolId result = ToolResultBlock toolId result (Just False)
 -- let err = buildToolError toolCallId (String "Location not found")
 -- @
 buildToolError :: ToolCallId -> Value -> ContentBlock
-buildToolError toolId errMsg = ToolResultBlock toolId errMsg (Just True)
+buildToolError toolId errMsg = ToolResultBlock toolId errMsg (Just True) Nothing

@@ -58,12 +58,25 @@ instance Arbitrary ToolChoice where
     , ToolChoice <$> genText
     ]
 
+instance Arbitrary SystemBlock where
+  arbitrary = SystemBlock
+    <$> genText
+    <*> oneof [pure Nothing, Just <$> arbitrary]
+
+instance Arbitrary SystemContent where
+  arbitrary = oneof
+    [ SystemText <$> genText
+    , SystemBlocks <$> listOf1 arbitrary
+    ]
+
 instance Arbitrary CreateMessageRequest where
   arbitrary = do
     model <- ModelId <$> genText
     msgs <- listOf1 arbitrary
     maxTok <- choose (1, 4096)
-    pure $ mkRequest model msgs maxTok
+    sys <- oneof [pure Nothing, Just <$> arbitrary]
+    let req = mkRequest model msgs maxTok
+    pure $ req { requestSystem = sys }
 
 -- Tests
 
@@ -157,3 +170,44 @@ spec = describe "Types.Request" $ do
       requestModel req `shouldBe` claude4Sonnet
       length (requestMessages req) `shouldBe` 1
       requestMaxTokens req `shouldBe` 1024
+
+  describe "SystemContent" $ do
+    it "round-trips through JSON" $ property $
+      \(sc :: SystemContent) -> decode (encode sc) === Just sc
+
+    it "parses plain string as SystemText" $ do
+      let json = "\"You are a helpful assistant.\""
+      decode json `shouldBe` Just (SystemText "You are a helpful assistant.")
+
+    it "parses array as SystemBlocks" $ do
+      let json = "[{\"type\":\"text\",\"text\":\"Be helpful.\"}]"
+      case decode json of
+        Just (SystemBlocks [SystemBlock txt Nothing]) ->
+          txt `shouldBe` "Be helpful."
+        _ -> expectationFailure "Failed to parse SystemBlocks"
+
+    it "encodes SystemText as plain string" $ do
+      encode (SystemText "test") `shouldBe` "\"test\""
+
+  describe "SystemBlock" $ do
+    it "round-trips through JSON" $ property $
+      \(sb :: SystemBlock) -> decode (encode sb) === Just sb
+
+    it "always emits type field in JSON" $ do
+      let sb = systemBlock "hello"
+          jsonText = T.pack $ show $ encode sb
+      -- show of ByteString includes escaped quotes, so check for the key
+      T.isInfixOf "type" jsonText `shouldBe` True
+
+    it "omits cache_control when Nothing" $ do
+      let sb = systemBlock "hello"
+          jsonText = T.pack $ show $ encode sb
+      T.isInfixOf "cache_control" jsonText `shouldBe` False
+
+    it "includes cache_control when present" $ do
+      let sb = cachedSystemBlock "hello"
+          jsonText = T.pack $ show $ encode sb
+      T.isInfixOf "cache_control" jsonText `shouldBe` True
+
+    it "cachedSystemBlock uses ephemeral cache control" $ do
+      systemBlockCacheControl (cachedSystemBlock "test") `shouldBe` Just (CacheControl "ephemeral")

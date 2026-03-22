@@ -21,13 +21,15 @@ instance Arbitrary Usage where
   arbitrary = Usage
     <$> choose (0, 10000)
     <*> choose (0, 10000)
+    <*> oneof [pure Nothing, Just <$> choose (0, 10000)]
+    <*> oneof [pure Nothing, Just <$> choose (0, 10000)]
 
 instance Arbitrary MessageResponse where
   arbitrary = MessageResponse
     <$> (MessageId <$> genText)
     <*> pure "message"
     <*> pure Assistant
-    <*> listOf1 (TextBlock <$> genText)
+    <*> listOf1 (TextBlock <$> genText <*> pure Nothing)
     <*> (ModelId <$> genText)
     <*> (Just <$> elements [EndTurn, MaxTokens, StopSequence, ToolUse])
     <*> (Just <$> genText)
@@ -49,7 +51,7 @@ spec = describe "Types.Response" $ do
       \(usage :: Usage) -> decode (encode usage) === Just usage
 
     it "uses snake_case for field names" $ do
-      let usage = Usage 100 200
+      let usage = Usage 100 200 Nothing Nothing
       T.isInfixOf "input_tokens" (T.pack $ show $ encode usage) `shouldBe` True
 
   describe "MessageResponse" $ do
@@ -61,11 +63,11 @@ spec = describe "Types.Response" $ do
             (MessageId "msg_123")
             "message"
             Assistant
-            [TextBlock "hello"]
+            [TextBlock "hello" Nothing]
             claude4Sonnet
             (Just EndTurn)
             Nothing
-            (Usage 10 20)
+            (Usage 10 20 Nothing Nothing)
       T.isInfixOf "stop_reason" (T.pack $ show $ encode resp) `shouldBe` True
 
   describe "APIResponse" $ do
@@ -78,11 +80,11 @@ spec = describe "Types.Response" $ do
             (MessageId "msg_123")
             "message"
             Assistant
-            [TextBlock "Hello", TextBlock "World"]
+            [TextBlock "Hello" Nothing, TextBlock "World" Nothing]
             claude4Sonnet
             Nothing
             Nothing
-            (Usage 10 20)
+            (Usage 10 20 Nothing Nothing)
       extractText resp `shouldBe` "Hello\nWorld"
 
     it "extractText ignores non-text blocks" $ do
@@ -90,9 +92,26 @@ spec = describe "Types.Response" $ do
             (MessageId "msg_123")
             "message"
             Assistant
-            [TextBlock "Hello", ImageBlock (URLSource "https://example.com/img.jpg"), TextBlock "World"]
+            [TextBlock "Hello" Nothing, ImageBlock (URLSource "https://example.com/img.jpg") Nothing, TextBlock "World" Nothing]
             claude4Sonnet
             Nothing
             Nothing
-            (Usage 10 20)
+            (Usage 10 20 Nothing Nothing)
       extractText resp `shouldBe` "Hello\nWorld"
+
+  describe "Usage cache fields" $ do
+    it "round-trips with cache token counts" $ do
+      let usage = Usage 100 200 (Just 50) (Just 30)
+      decode (encode usage) `shouldBe` Just usage
+
+    it "omits cache fields when Nothing" $ do
+      let usage = Usage 100 200 Nothing Nothing
+          jsonText = T.pack $ show $ encode usage
+      T.isInfixOf "cache_creation_input_tokens" jsonText `shouldBe` False
+      T.isInfixOf "cache_read_input_tokens" jsonText `shouldBe` False
+
+    it "includes cache fields when present" $ do
+      let usage = Usage 100 200 (Just 50) (Just 30)
+          jsonText = T.pack $ show $ encode usage
+      T.isInfixOf "cache_creation_input_tokens" jsonText `shouldBe` True
+      T.isInfixOf "cache_read_input_tokens" jsonText `shouldBe` True

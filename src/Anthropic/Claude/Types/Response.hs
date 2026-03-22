@@ -36,6 +36,8 @@ import GHC.Generics (Generic)
 data Usage = Usage
   { usageInputTokens :: Int
   , usageOutputTokens :: Int
+  , usageCacheCreationInputTokens :: Maybe Int
+  , usageCacheReadInputTokens :: Maybe Int
   } deriving (Eq, Show, Generic)
 
 instance FromJSON Usage where
@@ -104,7 +106,7 @@ instance ToJSON a => ToJSON (APIResponse a) where
 extractText :: MessageResponse -> Text
 extractText response = T.intercalate "\n" texts
   where
-    texts = [t | TextBlock t <- responseContent response]
+    texts = [t | TextBlock t _ <- responseContent response]
 
 -- | Unwrap APIResponse or throw exception
 --

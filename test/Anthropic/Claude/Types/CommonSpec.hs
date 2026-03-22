@@ -34,10 +34,10 @@ instance Arbitrary ToolCallId where
 
 instance Arbitrary ContentBlock where
   arbitrary = oneof
-    [ TextBlock <$> genText
-    , ImageBlock <$> arbitrary
-    , ToolUseBlock <$> arbitrary <*> genText <*> genJsonValue
-    , ToolResultBlock <$> arbitrary <*> genJsonValue <*> arbitrary
+    [ TextBlock <$> genText <*> arbitrary
+    , ImageBlock <$> arbitrary <*> arbitrary
+    , ToolUseBlock <$> arbitrary <*> genText <*> genJsonValue <*> arbitrary
+    , ToolResultBlock <$> arbitrary <*> genJsonValue <*> arbitrary <*> arbitrary
     ]
     where
       genText = T.pack <$> listOf1 (elements ['a'..'z'])
@@ -99,19 +99,19 @@ spec = describe "Types.Common" $ do
   describe "ContentBlock" $ do
     it "parses TextBlock from JSON" $ do
       let json = "{\"type\":\"text\",\"text\":\"Hello, world!\"}"
-      let expected = TextBlock "Hello, world!"
+      let expected = TextBlock "Hello, world!" Nothing
       decode json `shouldBe` Just expected
 
     it "parses ImageBlock from JSON" $ do
       let json = "{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/jpeg\",\"data\":\"abc\"}}"
-      let expected = ImageBlock (Base64Source "image/jpeg" "abc")
+      let expected = ImageBlock (Base64Source "image/jpeg" "abc") Nothing
       decode json `shouldBe` Just expected
 
     it "parses ToolUseBlock from JSON" $ do
       let json = "{\"type\":\"tool_use\",\"id\":\"toolu_123\",\"name\":\"get_weather\",\"input\":{\"location\":\"SF\"}}"
       let toolId = ToolCallId "toolu_123"
       case decode json of
-        Just (ToolUseBlock tid name _) -> do
+        Just (ToolUseBlock tid name _ _) -> do
           tid `shouldBe` toolId
           name `shouldBe` "get_weather"
         _ -> expectationFailure "Failed to parse ToolUseBlock"
@@ -119,31 +119,31 @@ spec = describe "Types.Common" $ do
     it "parses ToolResultBlock from JSON" $ do
       let json = "{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_123\",\"content\":{\"temp\":72},\"is_error\":false}"
       case decode json of
-        Just (ToolResultBlock _ _ isErr) -> isErr `shouldBe` Just False
+        Just (ToolResultBlock _ _ isErr _) -> isErr `shouldBe` Just False
         _ -> expectationFailure "Failed to parse ToolResultBlock"
 
     it "encodes TextBlock with correct type field" $ do
-      let block = TextBlock "test"
+      let block = TextBlock "test" Nothing
       case decode (encode block) of
-        Just (TextBlock _) -> pure ()
+        Just (TextBlock _ _) -> pure ()
         _ -> expectationFailure "Failed to roundtrip TextBlock"
 
     it "encodes ImageBlock with correct type field" $ do
-      let block = ImageBlock (URLSource "https://example.com/img.jpg")
+      let block = ImageBlock (URLSource "https://example.com/img.jpg") Nothing
       case decode (encode block) of
-        Just (ImageBlock _) -> pure ()
+        Just (ImageBlock _ _) -> pure ()
         _ -> expectationFailure "Failed to roundtrip ImageBlock"
 
     it "encodes ToolUseBlock with correct type field" $ do
-      let block = ToolUseBlock (ToolCallId "id") "tool" Null
+      let block = ToolUseBlock (ToolCallId "id") "tool" Null Nothing
       case decode (encode block) of
-        Just (ToolUseBlock _ _ _) -> pure ()
+        Just (ToolUseBlock _ _ _ _) -> pure ()
         _ -> expectationFailure "Failed to roundtrip ToolUseBlock"
 
     it "encodes ToolResultBlock with correct type field" $ do
-      let block = ToolResultBlock (ToolCallId "id") Null Nothing
+      let block = ToolResultBlock (ToolCallId "id") Null Nothing Nothing
       case decode (encode block) of
-        Just (ToolResultBlock _ _ _) -> pure ()
+        Just (ToolResultBlock _ _ _ _) -> pure ()
         _ -> expectationFailure "Failed to roundtrip ToolResultBlock"
 
     it "round-trips through JSON" $ property $
@@ -157,7 +157,7 @@ spec = describe "Types.Common" $ do
     it "parses array as BlocksContent" $ do
       let json = "[{\"type\":\"text\",\"text\":\"Hello\"}]"
       case decode json of
-        Just (BlocksContent [TextBlock "Hello"]) -> pure ()
+        Just (BlocksContent [TextBlock "Hello" Nothing]) -> pure ()
         _ -> expectationFailure "Failed to parse BlocksContent"
 
     it "encodes TextContent as plain string" $ do
@@ -165,7 +165,7 @@ spec = describe "Types.Common" $ do
       encode content `shouldBe` "\"test\""
 
     it "encodes BlocksContent as array" $ do
-      let content = BlocksContent [TextBlock "hello"]
+      let content = BlocksContent [TextBlock "hello" Nothing]
       case decode (encode content) of
         Just (BlocksContent _) -> pure ()
         _ -> expectationFailure "Failed to encode BlocksContent as array"
@@ -175,16 +175,38 @@ spec = describe "Types.Common" $ do
 
   describe "Helper Constructors" $ do
     it "textBlock creates TextBlock" $ do
-      textBlock "hello" `shouldBe` TextBlock "hello"
+      textBlock "hello" `shouldBe` TextBlock "hello" Nothing
 
     it "imageBlock creates ImageBlock with Base64Source" $ do
       let block = imageBlock "image/png" "data123"
-      block `shouldBe` ImageBlock (Base64Source "image/png" "data123")
+      block `shouldBe` ImageBlock (Base64Source "image/png" "data123") Nothing
 
     it "toolUseBlock creates ToolUseBlock" $ do
       let block = toolUseBlock (ToolCallId "id") "tool" Null
-      block `shouldBe` ToolUseBlock (ToolCallId "id") "tool" Null
+      block `shouldBe` ToolUseBlock (ToolCallId "id") "tool" Null Nothing
 
     it "toolResultBlock creates ToolResultBlock" $ do
       let block = toolResultBlock (ToolCallId "id") (String "result") (Just False)
-      block `shouldBe` ToolResultBlock (ToolCallId "id") (String "result") (Just False)
+      block `shouldBe` ToolResultBlock (ToolCallId "id") (String "result") (Just False) Nothing
+
+  describe "Cache Control on ContentBlock" $ do
+    it "omits cache_control when Nothing" $ do
+      let block = TextBlock "test" Nothing
+          jsonText = T.pack $ show $ encode block
+      T.isInfixOf "cache_control" jsonText `shouldBe` False
+
+    it "includes cache_control when Just" $ do
+      let block = TextBlock "test" (Just ephemeralCacheControl)
+          jsonText = T.pack $ show $ encode block
+      T.isInfixOf "cache_control" jsonText `shouldBe` True
+
+    it "round-trips ContentBlock with cache_control" $ do
+      let block = TextBlock "cached text" (Just ephemeralCacheControl)
+      decode (encode block) `shouldBe` Just block
+
+    it "withCacheControl sets cache_control on any block" $ do
+      let block = withCacheControl ephemeralCacheControl (textBlock "hello")
+      blockCacheControl block `shouldBe` Just ephemeralCacheControl
+
+    it "ephemeralCacheControl has type ephemeral" $ do
+      cacheType ephemeralCacheControl `shouldBe` "ephemeral"

@@ -18,18 +18,23 @@ module Anthropic.Claude.Types.Request
   , Message(..)
   , Tool(..)
   , ToolChoice(..)
+  , SystemContent(..)
+  , SystemBlock(..)
 
     -- * Helper Constructors
   , userMsg
   , assistantMsg
   , assistantMsgBlocks
   , mkRequest
+  , systemBlock
+  , cachedSystemBlock
   ) where
 
 import Anthropic.Claude.Internal.JSON
 import Anthropic.Claude.Types.Common
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Schema (JsonSchema)
+import Control.Applicative ((<|>))
 import Data.Aeson.Types (Parser)
 import Data.Maybe (catMaybes)
 import Data.Text (Text)
@@ -103,6 +108,42 @@ instance ToJSON ToolChoice where
     , "name" .= name
     ]
 
+-- | A system prompt block with optional cache control
+data SystemBlock = SystemBlock
+  { systemBlockText :: Text
+  , systemBlockCacheControl :: Maybe CacheControl
+  } deriving (Eq, Show, Generic)
+
+instance FromJSON SystemBlock where
+  parseJSON = withObject "SystemBlock" $ \o ->
+    SystemBlock
+      <$> o .: "text"
+      <*> o .:? "cache_control"
+
+instance ToJSON SystemBlock where
+  toJSON (SystemBlock txt cc) = object $ catMaybes
+    [ Just ("type" .= ("text" :: Text))
+    , Just ("text" .= txt)
+    , ("cache_control" .=) <$> cc
+    ]
+
+-- | System prompt content (either a plain string or a list of blocks)
+--
+-- Use 'SystemText' for simple system prompts, or 'SystemBlocks' when
+-- you need cache control on individual blocks.
+data SystemContent
+  = SystemText Text            -- ^ @"system": "string"@
+  | SystemBlocks [SystemBlock] -- ^ @"system": [{"type":"text","text":"...","cache_control":...}]@
+  deriving (Eq, Show, Generic)
+
+instance FromJSON SystemContent where
+  parseJSON v = (SystemText <$> parseJSON v)
+            <|> (SystemBlocks <$> parseJSON v)
+
+instance ToJSON SystemContent where
+  toJSON (SystemText t) = toJSON t
+  toJSON (SystemBlocks blocks) = toJSON blocks
+
 -- | Request to create a message
 data CreateMessageRequest = CreateMessageRequest
   { requestModel :: ModelId
@@ -111,7 +152,7 @@ data CreateMessageRequest = CreateMessageRequest
   , requestMetadata :: Maybe Value
   , requestStopSequences :: Maybe [Text]
   , requestStream :: Maybe Bool
-  , requestSystem :: Maybe Text
+  , requestSystem :: Maybe SystemContent
   , requestTemperature :: Maybe Double
   , requestToolChoice :: Maybe ToolChoice
   , requestTools :: Maybe [Tool]
@@ -194,3 +235,11 @@ mkRequest model messages maxTokens = CreateMessageRequest
   , requestTopK = Nothing
   , requestTopP = Nothing
   }
+
+-- | Smart constructor for a system block without cache control
+systemBlock :: Text -> SystemBlock
+systemBlock txt = SystemBlock txt Nothing
+
+-- | Smart constructor for a cached system block (ephemeral cache control)
+cachedSystemBlock :: Text -> SystemBlock
+cachedSystemBlock txt = SystemBlock txt (Just ephemeralCacheControl)

@@ -37,27 +37,27 @@ spec = describe "Internal.Streaming" $ do
     it "MessageStart replaces the response" $ do
       let msg = MessageResponse
             (MessageId "msg_123") "message" Assistant
-            [TextBlock "hello"] (ModelId "claude")
-            (Just EndTurn) Nothing (Usage 10 20)
+            [TextBlock "hello" Nothing] (ModelId "claude")
+            (Just EndTurn) Nothing (Usage 10 20 Nothing Nothing)
           evt = MessageStart (MessageStartPayload msg)
           result = updateMessageResponse evt defaultMessageResponse
       responseId result `shouldBe` MessageId "msg_123"
-      responseContent result `shouldBe` [TextBlock "hello"]
+      responseContent result `shouldBe` [TextBlock "hello" Nothing]
 
     it "ContentBlockStart appends a block" $ do
-      let evt = ContentBlockStart (ContentBlockStartPayload 0 (TextBlock ""))
+      let evt = ContentBlockStart (ContentBlockStartPayload 0 (TextBlock "" Nothing))
           result = updateMessageResponse evt defaultMessageResponse
       length (responseContent result) `shouldBe` 1
 
     it "ContentBlockDelta appends text" $ do
-      let base = defaultMessageResponse { responseContent = [TextBlock "He"] }
+      let base = defaultMessageResponse { responseContent = [TextBlock "He" Nothing] }
           evt = ContentBlockDelta (ContentBlockDeltaPayload 0 (TextDelta "llo"))
           result = updateMessageResponse evt base
-      responseContent result `shouldBe` [TextBlock "Hello"]
+      responseContent result `shouldBe` [TextBlock "Hello" Nothing]
 
     it "MessageDelta sets stop reason and usage" $ do
       let delta = DeltaBody (Just EndTurn) Nothing
-          usage = Usage 100 200
+          usage = Usage 100 200 Nothing Nothing
           evt = MessageDelta (MessageDeltaPayload delta usage)
           result = updateMessageResponse evt defaultMessageResponse
       responseStopReason result `shouldBe` Just EndTurn
