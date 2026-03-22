@@ -117,6 +117,7 @@ test-suite claude-sdk-test
                     Anthropic.Claude.StreamingSpec
                     Anthropic.Claude.BatchSpec
                     Anthropic.Claude.ToolsSpec
+                    Anthropic.Claude.TestHelpers
   hs-source-dirs:   test
   build-tool-depends: hspec-discover:hspec-discover >=2.10
   build-depends:    base >=4.16 && <5,

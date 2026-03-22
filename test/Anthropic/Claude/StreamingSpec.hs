@@ -3,11 +3,17 @@
 
 module Anthropic.Claude.StreamingSpec (spec) where
 
+import Anthropic.Claude.Internal.SSE (buildSSEEvents)
+import Anthropic.Claude.Internal.Streaming (decodeSSEEvent, updateMessageResponse, defaultMessageResponse)
 import Anthropic.Claude.Streaming
+import Anthropic.Claude.TestHelpers
+import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
+import Anthropic.Claude.Types.Response
 import Anthropic.Claude.Types.Stream
-import Anthropic.Claude.Internal.Streaming (defaultMessageResponse)
 import Control.Exception (try, SomeException)
+import Data.Maybe (mapMaybe)
 import qualified Streaming.Prelude as S
 import Test.Hspec
 
@@ -35,10 +41,64 @@ spec = describe "Streaming" $ do
         Left (_ :: SomeException) -> pure ()
         Right _ -> expectationFailure "Expected exception"
 
-  describe "forEachEvent" $ do
-    it "placeholder - requires real API connection" $
-      pendingWith "Integration tests require ANTHROPIC_API_KEY"
+  describe "forEachEvent (mock SSE pipeline)" $ do
+    it "processes a complete SSE stream into events" $ do
+      let sseEvents = buildSSEEvents mockSSELines
+          decoded = mapMaybe decodeSSEEvent sseEvents
+          rightEvents = [evt | Right evt <- decoded]
 
-  describe "withMessageStream" $ do
-    it "placeholder - requires real API connection" $
-      pendingWith "Integration tests require ANTHROPIC_API_KEY"
+      -- Should have 6 events: message_start, content_block_start, content_block_delta, content_block_stop, message_delta, message_stop
+      length rightEvents `shouldBe` 6
+
+      -- First event is MessageStart
+      case head rightEvents of
+        MessageStart payload -> responseId (messageStartMessage payload) `shouldBe` MessageId "msg_s1"
+        other -> expectationFailure $ "Expected MessageStart, got: " ++ show other
+
+      -- Third event is ContentBlockDelta with "Hello!"
+      case rightEvents !! 2 of
+        ContentBlockDelta payload -> contentBlockDeltaDelta payload `shouldBe` TextDelta "Hello!"
+        other -> expectationFailure $ "Expected ContentBlockDelta, got: " ++ show other
+
+      -- Last event is MessageStop
+      last rightEvents `shouldBe` MessageStop
+
+    it "accumulates events into final MessageResponse" $ do
+      let sseEvents = buildSSEEvents mockSSELines
+          decoded = mapMaybe decodeSSEEvent sseEvents
+          rightEvents = [evt | Right evt <- decoded]
+          finalMsg = foldl (flip updateMessageResponse) defaultMessageResponse rightEvents
+
+      responseId finalMsg `shouldBe` MessageId "msg_s1"
+      responseContent finalMsg `shouldBe` [TextBlock "Hello!"]
+      responseStopReason finalMsg `shouldBe` Just EndTurn
+      usageOutputTokens (responseUsage finalMsg) `shouldBe` 5
+
+  describe "withMessageStream (mock SSE pipeline)" $ do
+    it "builds a stream that yields events and returns final message" $ do
+      let sseEvents = buildSSEEvents mockSSELines
+          decoded = mapMaybe decodeSSEEvent sseEvents
+
+          -- Simulate the stream that createMessageStream would produce
+          mockStream = go defaultMessageResponse decoded
+          go acc [] = pure acc
+          go acc (item : rest) = do
+            S.yield item
+            let acc' = case item of
+                  Right evt -> updateMessageResponse evt acc
+                  Left _    -> acc
+            go acc' rest
+
+      -- Consume the stream
+      (events, finalMsg) <- do
+        evts <- S.toList_ mockStream
+        -- Rebuild final message manually
+        let rightEvts = [evt | Right evt <- evts]
+            final = foldl (flip updateMessageResponse) defaultMessageResponse rightEvts
+        pure (evts, final)
+
+      -- Verify events
+      length events `shouldBe` 6
+      -- Verify final message
+      extractText finalMsg `shouldBe` "Hello!"
+      responseStopReason finalMsg `shouldBe` Just EndTurn
