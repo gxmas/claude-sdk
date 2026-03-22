@@ -25,13 +25,14 @@ module Anthropic.Claude.Types.Client
   , RateLimitInfo(..)
 
     -- * Client Environment (opaque)
-  , ClientEnv
+  , ClientEnv(..)
   ) where
 
 import Anthropic.Claude.Internal.JSON
 import Anthropic.Claude.Types.Core (ApiKey)
 import Data.Time.Clock (NominalDiffTime)
 import GHC.Generics (Generic)
+import Network.HTTP.Client (Manager)
 
 -- | Backoff strategy for retries
 data BackoffStrategy
@@ -155,5 +156,5 @@ data ClientEnv = ClientEnv
   { clientApiKey :: ApiKey
   , clientRetryPolicy :: RetryPolicy
   , clientBaseUrl :: String
-  -- Note: HTTP Manager will be added in Phase 3
-  } deriving (Show, Generic)
+  , clientManager :: Manager
+  }

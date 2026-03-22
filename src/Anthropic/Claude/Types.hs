@@ -14,9 +14,13 @@ module Anthropic.Claude.Types
   , module Anthropic.Claude.Types.Common
   , module Anthropic.Claude.Types.Error
   , module Anthropic.Claude.Types.Client
+  , module Anthropic.Claude.Types.Request
+  , module Anthropic.Claude.Types.Response
   ) where
 
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Common
 import Anthropic.Claude.Types.Error
 import Anthropic.Claude.Types.Client
+import Anthropic.Claude.Types.Request
+import Anthropic.Claude.Types.Response
