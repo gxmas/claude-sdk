@@ -40,11 +40,11 @@ data Usage = Usage
   } deriving (Eq, Show, Generic)
 
 instance FromJSON Usage where
-  parseJSON = genericParseJSON aesonOptions
+  parseJSON = genericParseJSON (prefixOptions "usage")
 
 instance ToJSON Usage where
-  toJSON = genericToJSON aesonOptions
-  toEncoding = genericToEncoding aesonOptions
+  toJSON = genericToJSON (prefixOptions "usage")
+  toEncoding = genericToEncoding (prefixOptions "usage")
 
 -- | Response from the Messages API
 data MessageResponse = MessageResponse
@@ -59,11 +59,11 @@ data MessageResponse = MessageResponse
   } deriving (Eq, Show, Generic)
 
 instance FromJSON MessageResponse where
-  parseJSON = genericParseJSON aesonOptions
+  parseJSON = genericParseJSON (prefixOptions "response")
 
 instance ToJSON MessageResponse where
-  toJSON = genericToJSON aesonOptions
-  toEncoding = genericToEncoding aesonOptions
+  toJSON = genericToJSON (prefixOptions "response")
+  toEncoding = genericToEncoding (prefixOptions "response")
 
 -- | API response wrapper carrying rate limit metadata
 --

@@ -15,6 +15,7 @@ module Anthropic.Claude.Messages
   ) where
 
 import Anthropic.Claude.Internal.HTTP
+import Anthropic.Claude.Internal.Retry
 import Anthropic.Claude.Types.Client
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
@@ -35,6 +36,9 @@ import UnliftIO (MonadUnliftIO, liftIO)
 -- Per ADR 0002: API errors (4xx, 5xx) are returned in Either,
 -- network errors are thrown as exceptions.
 --
+-- Per ADR 0003: Automatically retries transient errors (429, 500, 529)
+-- using the retry policy from ClientEnv.
+--
 -- Example:
 -- @
 -- let req = mkRequest claude4Sonnet [userMsg "Hello!"] 1024
@@ -50,7 +54,7 @@ createMessage
   => ClientEnv
   -> CreateMessageRequest
   -> m (Either APIError (APIResponse MessageResponse))
-createMessage env req = liftIO $ do
+createMessage env req = withRetry (clientRetryPolicy env) $ liftIO $ do
   -- Build request
   let bodyBS = Aeson.encode req
   httpReq <- buildRequest env methodPost "/v1/messages" (RequestBodyLBS bodyBS)

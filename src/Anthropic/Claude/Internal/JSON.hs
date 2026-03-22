@@ -13,6 +13,7 @@ module Anthropic.Claude.Internal.JSON
   ( -- * Shared aeson options
     aesonOptions
   , aesonOptionsNoOmit
+  , prefixOptions
     -- * Discriminated union parsing
   , withDiscriminator
     -- * Re-exports
@@ -22,29 +23,42 @@ module Anthropic.Claude.Internal.JSON
 import Data.Aeson
 import Data.Aeson.Key (fromText)
 import Data.Aeson.Types (Parser)
+import Data.Char (toLower)
+import Data.List (stripPrefix)
 import Data.Text (Text)
 
 -- | Standard aeson options for Claude API types.
 --
--- Conventions:
--- - Field names: camelCase (Haskell) → snake_case (JSON)
--- - Constructor tags: CamelCase → snake_case
--- - Optional fields: Omit Nothing values from JSON
---
--- Example:
--- @
--- data User = User { userName :: Text, userAge :: Maybe Int }
---   deriving Generic
--- instance ToJSON User where
---   toJSON = genericToJSON aesonOptions
--- -- Produces: {"user_name": "Alice", "user_age": 30} or {"user_name": "Alice"}
--- @
+-- **Warning**: Only use for types whose field names have no prefix.
+-- For types with prefixed fields (e.g., @messageRole@, @toolName@),
+-- use 'prefixOptions' instead.
 aesonOptions :: Options
 aesonOptions = defaultOptions
   { fieldLabelModifier = camelTo2 '_'
   , omitNothingFields = True
   , constructorTagModifier = camelTo2 '_'
   }
+
+-- | Aeson options that strip a record field prefix before converting
+-- to snake_case.
+--
+-- Example:
+-- @
+-- data Message = Message { messageRole :: Role, messageContent :: Content }
+--   deriving Generic
+-- instance ToJSON Message where
+--   toJSON = genericToJSON (prefixOptions "message")
+-- -- Produces: {"role": "user", "content": "hello"}
+-- @
+prefixOptions :: String -> Options
+prefixOptions prefix = aesonOptions
+  { fieldLabelModifier = camelTo2 '_' . dropPrefix prefix
+  }
+  where
+    dropPrefix p s = case stripPrefix p s of
+      Just (c:rest) -> toLower c : rest   -- lowercase the first char after prefix
+      Just []       -> s                  -- prefix == field name, leave unchanged
+      Nothing       -> camelTo2 '_' s     -- no prefix match, fall back to default
 
 -- | Variant of 'aesonOptions' that does not omit Nothing fields.
 --

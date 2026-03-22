@@ -69,7 +69,7 @@ spec = describe "Types.Client" $ do
 
   describe "RetryPolicy" $ do
     it "parses from JSON with snake_case fields" $ do
-      let json = "{\"retry_max_attempts\":3,\"retry_strategy\":{\"type\":\"exponential\",\"base\":1.0,\"max\":60.0}}"
+      let json = "{\"max_attempts\":3,\"strategy\":{\"type\":\"exponential\",\"base\":1.0,\"max\":60.0}}"
       case decode json of
         Just (RetryPolicy maxAttempts _) -> maxAttempts `shouldBe` 3
         _ -> expectationFailure "Failed to parse RetryPolicy"
@@ -106,7 +106,7 @@ spec = describe "Types.Client" $ do
 
   describe "RateLimitInfo" $ do
     it "parses from JSON with all fields" $ do
-      let json = "{\"rate_limit_requests\":50,\"rate_limit_tokens\":40000,\"rate_limit_remaining\":49,\"rate_limit_tokens_remaining\":39000,\"rate_limit_reset_requests\":60,\"rate_limit_reset_tokens\":60}"
+      let json = "{\"requests\":50,\"tokens\":40000,\"remaining\":49,\"tokens_remaining\":39000,\"reset_requests\":60,\"reset_tokens\":60}"
       case decode json of
         Just (RateLimitInfo reqs tokens remaining tokRem resetReq resetTok) -> do
           reqs `shouldBe` Just 50
@@ -124,8 +124,9 @@ spec = describe "Types.Client" $ do
     it "round-trips through JSON" $ property $
       \(info :: RateLimitInfo) -> decode (encode info) === Just info
 
-    it "uses snake_case field names" $ do
+    it "uses correct field names (no prefix)" $ do
       let info = RateLimitInfo (Just 50) (Just 40000) Nothing Nothing Nothing Nothing
       let encoded = show (encode info)
-      encoded `shouldContain` "rate_limit_requests"
-      encoded `shouldContain` "rate_limit_tokens"
+      encoded `shouldContain` "requests"
+      encoded `shouldContain` "tokens"
+      encoded `shouldNotContain` "rate_limit"

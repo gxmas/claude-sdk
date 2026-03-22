@@ -64,8 +64,8 @@ spec = describe "Types.Common" $ do
     it "round-trips through JSON" $ property $
       \(cc :: CacheControl) -> decode (encode cc) === Just cc
 
-    it "parses cache control with cache_type field" $ do
-      let json = "{\"cache_type\":\"ephemeral\"}"
+    it "parses cache control with type field" $ do
+      let json = "{\"type\":\"ephemeral\"}"
       decode json `shouldBe` Just (CacheControl "ephemeral")
 
   describe "ImageSource" $ do

@@ -41,11 +41,11 @@ data Message = Message
   } deriving (Eq, Show, Generic)
 
 instance FromJSON Message where
-  parseJSON = genericParseJSON aesonOptions
+  parseJSON = genericParseJSON (prefixOptions "message")
 
 instance ToJSON Message where
-  toJSON = genericToJSON aesonOptions
-  toEncoding = genericToEncoding aesonOptions
+  toJSON = genericToJSON (prefixOptions "message")
+  toEncoding = genericToEncoding (prefixOptions "message")
 
 -- | Tool definition for tool use
 data Tool = Tool
@@ -55,11 +55,11 @@ data Tool = Tool
   } deriving (Eq, Show, Generic)
 
 instance FromJSON Tool where
-  parseJSON = genericParseJSON aesonOptions
+  parseJSON = genericParseJSON (prefixOptions "tool")
 
 instance ToJSON Tool where
-  toJSON = genericToJSON aesonOptions
-  toEncoding = genericToEncoding aesonOptions
+  toJSON = genericToJSON (prefixOptions "tool")
+  toEncoding = genericToEncoding (prefixOptions "tool")
 
 -- | Tool choice strategy
 data ToolChoice

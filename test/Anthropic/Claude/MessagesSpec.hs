@@ -2,8 +2,6 @@
 
 module Anthropic.Claude.MessagesSpec (spec) where
 
-import Anthropic.Claude.Messages
-import Anthropic.Claude.Types
 import Test.Hspec
 
 spec :: Spec
@@ -19,3 +17,4 @@ spec = describe "Messages" $ do
     -- - Error response handling (400, 401, 429, 500)
     -- - Rate limit header extraction
     -- - Request ID preservation
+    -- - Retry behavior on transient errors

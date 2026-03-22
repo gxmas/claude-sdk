@@ -11,6 +11,12 @@ description:
   A comprehensive, type-safe Haskell SDK for building Claude client applications.
   Follows architectural best practices with streaming support, retry policies,
   and full API coverage.
+stability:          experimental
+homepage:           https://github.com/anthropics/claude-sdk-haskell
+bug-reports:        https://github.com/anthropics/claude-sdk-haskell/issues
+tested-with:        GHC == 9.6.7
+extra-doc-files:    README.md
+                    CHANGELOG.md
 
 common warnings
   ghc-options:      -Wall
@@ -30,9 +36,18 @@ library
                     Anthropic.Claude.Types.Client
                     Anthropic.Claude.Types.Request
                     Anthropic.Claude.Types.Response
+                    Anthropic.Claude.Types.Stream
+                    Anthropic.Claude.Types.Batch
                     Anthropic.Claude.Messages
+                    Anthropic.Claude.Client
+                    Anthropic.Claude.Streaming
+                    Anthropic.Claude.Batch
+                    Anthropic.Claude.Tools
                     Anthropic.Claude.Internal.JSON
                     Anthropic.Claude.Internal.HTTP
+                    Anthropic.Claude.Internal.Retry
+                    Anthropic.Claude.Internal.SSE
+                    Anthropic.Claude.Internal.Streaming
   other-modules:
   hs-source-dirs:   src
   build-depends:    base >=4.16 && <5,
@@ -46,8 +61,40 @@ library
                     http-client >=0.7,
                     http-client-tls >=0.3,
                     unliftio-core >=0.2,
-                    unliftio >=0.2
+                    unliftio >=0.2,
+                    streaming >=0.2
   default-language: Haskell2010
+
+executable single-prompt
+  import:           warnings
+  main-is:          SinglePrompt.hs
+  hs-source-dirs:   app
+  build-depends:    base >=4.16 && <5,
+                    claude-sdk,
+                    text >=1.2
+  default-language: Haskell2010
+  ghc-options:      -threaded -rtsopts -with-rtsopts=-N
+
+executable streaming-prompt
+  import:           warnings
+  main-is:          StreamingPrompt.hs
+  hs-source-dirs:   app
+  build-depends:    base >=4.16 && <5,
+                    claude-sdk,
+                    text >=1.2
+  default-language: Haskell2010
+  ghc-options:      -threaded -rtsopts -with-rtsopts=-N
+
+executable tool-use-example
+  import:           warnings
+  main-is:          ToolUseExample.hs
+  hs-source-dirs:   app
+  build-depends:    base >=4.16 && <5,
+                    claude-sdk,
+                    text >=1.2,
+                    aeson >=2.1
+  default-language: Haskell2010
+  ghc-options:      -threaded -rtsopts -with-rtsopts=-N
 
 test-suite claude-sdk-test
   import:           warnings
@@ -59,8 +106,17 @@ test-suite claude-sdk-test
                     Anthropic.Claude.Types.ClientSpec
                     Anthropic.Claude.Types.RequestSpec
                     Anthropic.Claude.Types.ResponseSpec
+                    Anthropic.Claude.Types.StreamSpec
+                    Anthropic.Claude.Types.BatchSpec
                     Anthropic.Claude.Internal.HTTPSpec
+                    Anthropic.Claude.Internal.RetrySpec
+                    Anthropic.Claude.Internal.SSESpec
+                    Anthropic.Claude.Internal.StreamingSpec
                     Anthropic.Claude.MessagesSpec
+                    Anthropic.Claude.ClientSpec
+                    Anthropic.Claude.StreamingSpec
+                    Anthropic.Claude.BatchSpec
+                    Anthropic.Claude.ToolsSpec
   hs-source-dirs:   test
   build-tool-depends: hspec-discover:hspec-discover >=2.10
   build-depends:    base >=4.16 && <5,
@@ -72,6 +128,7 @@ test-suite claude-sdk-test
                     bytestring,
                     http-types,
                     http-client,
-                    unliftio
+                    unliftio,
+                    streaming
   default-language: Haskell2010
   ghc-options:      -threaded -rtsopts -with-rtsopts=-N

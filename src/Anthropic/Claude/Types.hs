@@ -16,6 +16,8 @@ module Anthropic.Claude.Types
   , module Anthropic.Claude.Types.Client
   , module Anthropic.Claude.Types.Request
   , module Anthropic.Claude.Types.Response
+  , module Anthropic.Claude.Types.Stream
+  , module Anthropic.Claude.Types.Batch
   ) where
 
 import Anthropic.Claude.Types.Core
@@ -24,3 +26,5 @@ import Anthropic.Claude.Types.Error
 import Anthropic.Claude.Types.Client
 import Anthropic.Claude.Types.Request
 import Anthropic.Claude.Types.Response
+import Anthropic.Claude.Types.Stream
+import Anthropic.Claude.Types.Batch

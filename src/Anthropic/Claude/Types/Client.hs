@@ -80,11 +80,11 @@ data RetryPolicy = RetryPolicy
   } deriving (Eq, Show, Generic)
 
 instance FromJSON RetryPolicy where
-  parseJSON = genericParseJSON aesonOptions
+  parseJSON = genericParseJSON (prefixOptions "retry")
 
 instance ToJSON RetryPolicy where
-  toJSON = genericToJSON aesonOptions
-  toEncoding = genericToEncoding aesonOptions
+  toJSON = genericToJSON (prefixOptions "retry")
+  toEncoding = genericToEncoding (prefixOptions "retry")
 
 -- | Default retry policy: exponential backoff with 3 retries
 --
@@ -136,11 +136,11 @@ data RateLimitInfo = RateLimitInfo
   } deriving (Eq, Show, Generic)
 
 instance FromJSON RateLimitInfo where
-  parseJSON = genericParseJSON aesonOptions
+  parseJSON = genericParseJSON (prefixOptions "rateLimit")
 
 instance ToJSON RateLimitInfo where
-  toJSON = genericToJSON aesonOptions
-  toEncoding = genericToEncoding aesonOptions
+  toJSON = genericToJSON (prefixOptions "rateLimit")
+  toEncoding = genericToEncoding (prefixOptions "rateLimit")
 
 -- | Client environment (opaque type)
 --

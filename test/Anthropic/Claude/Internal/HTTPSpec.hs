@@ -6,7 +6,7 @@ import Anthropic.Claude.Internal.HTTP
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Client
 import Anthropic.Claude.Types.Error
-import Network.HTTP.Types.Status (Status, mkStatus)
+import Network.HTTP.Types.Status (mkStatus)
 import Test.Hspec
 
 spec :: Spec

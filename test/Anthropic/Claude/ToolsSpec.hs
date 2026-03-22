@@ -1,0 +1,77 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+module Anthropic.Claude.ToolsSpec (spec) where
+
+import Anthropic.Claude.Tools
+import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.Core
+import Anthropic.Claude.Types.Request (Tool(..))
+import Anthropic.Claude.Types.Response
+import Data.Aeson (Value(..), object, (.=))
+import qualified Data.Text as T
+import Test.Hspec
+
+spec :: Spec
+spec = describe "Tools" $ do
+
+  describe "defineTool" $ do
+    it "creates a Tool with given name, description, and schema" $ do
+      let schema = object
+            [ "type" .= ("object" :: T.Text)
+            , "properties" .= object
+                [ "location" .= object
+                    [ "type" .= ("string" :: T.Text) ]
+                ]
+            ]
+          tool = defineTool "get_weather" "Get weather for a location" schema
+      toolName tool `shouldBe` "get_weather"
+      toolDescription tool `shouldBe` "Get weather for a location"
+      toolInputSchema tool `shouldBe` schema
+
+  describe "extractToolCalls" $ do
+    it "extracts tool use blocks from response" $ do
+      let toolId = ToolCallId "toolu_123"
+          input = object ["location" .= ("SF" :: T.Text)]
+          resp = MessageResponse
+            (MessageId "msg_1") "message" Assistant
+            [ TextBlock "I'll check the weather."
+            , ToolUseBlock toolId "get_weather" input
+            ]
+            (ModelId "claude") (Just ToolUse) Nothing (Usage 10 20)
+          calls = extractToolCalls resp
+      length calls `shouldBe` 1
+      let (cid, name, inp) = head calls
+      cid `shouldBe` toolId
+      name `shouldBe` "get_weather"
+      inp `shouldBe` input
+
+    it "extracts multiple tool calls" $ do
+      let resp = MessageResponse
+            (MessageId "msg_1") "message" Assistant
+            [ ToolUseBlock (ToolCallId "t1") "tool_a" Null
+            , TextBlock "between"
+            , ToolUseBlock (ToolCallId "t2") "tool_b" Null
+            ]
+            (ModelId "claude") (Just ToolUse) Nothing (Usage 10 20)
+      length (extractToolCalls resp) `shouldBe` 2
+
+    it "returns empty list when no tool calls" $ do
+      let resp = MessageResponse
+            (MessageId "msg_1") "message" Assistant
+            [TextBlock "Just text"]
+            (ModelId "claude") (Just EndTurn) Nothing (Usage 10 20)
+      extractToolCalls resp `shouldBe` []
+
+  describe "buildToolResult" $ do
+    it "creates ToolResultBlock with is_error=False" $ do
+      let toolId = ToolCallId "toolu_123"
+          result = object ["temperature" .= (72 :: Int)]
+          block = buildToolResult toolId result
+      block `shouldBe` ToolResultBlock toolId result (Just False)
+
+  describe "buildToolError" $ do
+    it "creates ToolResultBlock with is_error=True" $ do
+      let toolId = ToolCallId "toolu_123"
+          errMsg = String "Location not found"
+          block = buildToolError toolId errMsg
+      block `shouldBe` ToolResultBlock toolId errMsg (Just True)

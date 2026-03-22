@@ -5,13 +5,45 @@ Copyright   : (c) 2026 Anthropic
 License     : MIT
 Stability   : experimental
 
-This module serves as the main entry point for the Claude SDK.
-It will re-export all public APIs from the SDK.
+Main entry point for the Claude SDK. Import this module to get
+access to all public types, operations, and helpers.
 
-For now, it's a stub that will be populated in later phases.
+@
+import Anthropic.Claude
+
+main :: IO ()
+main = do
+  env <- mkClientEnv (ApiKey "sk-ant-...")
+  let req = mkRequest claude4Sonnet [userMsg "Hello!"] 1024
+  result <- createMessage env req
+  case result of
+    Left err -> print err
+    Right resp -> print (extractText (apiResponseBody resp))
+@
 -}
 module Anthropic.Claude
-  ( module Anthropic.Claude.Types
+  ( -- * Types
+    module Anthropic.Claude.Types
+
+    -- * Client
+  , module Anthropic.Claude.Client
+
+    -- * Messages API
+  , module Anthropic.Claude.Messages
+
+    -- * Streaming API
+  , module Anthropic.Claude.Streaming
+
+    -- * Batch API
+  , module Anthropic.Claude.Batch
+
+    -- * Tool Use Helpers
+  , module Anthropic.Claude.Tools
   ) where
 
 import Anthropic.Claude.Types
+import Anthropic.Claude.Client
+import Anthropic.Claude.Messages
+import Anthropic.Claude.Streaming
+import Anthropic.Claude.Batch
+import Anthropic.Claude.Tools

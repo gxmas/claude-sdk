@@ -43,11 +43,11 @@ data CacheControl = CacheControl
   } deriving (Eq, Show, Generic)
 
 instance FromJSON CacheControl where
-  parseJSON = genericParseJSON aesonOptions
+  parseJSON = genericParseJSON (prefixOptions "cache")
 
 instance ToJSON CacheControl where
-  toJSON = genericToJSON aesonOptions
-  toEncoding = genericToEncoding aesonOptions
+  toJSON = genericToJSON (prefixOptions "cache")
+  toEncoding = genericToEncoding (prefixOptions "cache")
 
 -- | Image source for vision capabilities
 --

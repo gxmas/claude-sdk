@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: GHC ${{ matrix.ghc }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ghc: ['9.6', '9.8', '9.10']
+        os: [ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: haskell-actions/setup@v2
+        id: setup
+        with:
+          ghc-version: ${{ matrix.ghc }}
+
+      - name: Configure
+        run: cabal configure --enable-tests --test-show-details=direct
+
+      - name: Build dependencies
+        run: cabal build --only-dependencies
+
+      - name: Build
+        run: cabal build all 2>&1 | tee build.log
+
+      - name: Check for warnings
+        run: |
+          if grep -q "warning:" build.log; then
+            echo "Build produced warnings:"
+            grep "warning:" build.log
+            exit 1
+          fi
+
+      - name: Run tests
+        run: cabal test all
+
+      - name: Build Haddock
+        run: cabal haddock all
+
+      - name: Check package
+        run: cabal check
