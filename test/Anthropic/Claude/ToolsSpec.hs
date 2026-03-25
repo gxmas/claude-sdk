@@ -9,6 +9,7 @@ import Anthropic.Claude.Types.Request (Tool (..))
 import Anthropic.Claude.Types.Response
 import Anthropic.Claude.Types.Schema
 import Data.Aeson (Value (..), object, (.=))
+import qualified Data.Aeson.KeyMap as KM
 import qualified Data.Text as T
 import Test.Hspec
 
@@ -41,14 +42,15 @@ spec = describe "Tools" $ do
     describe "extractToolCalls" $ do
         it "extracts tool use blocks from response" $ do
             let toolId = ToolCallId "toolu_123"
-                input = object ["location" .= ("SF" :: T.Text)]
+                inputObj = KM.fromList [("location", String "SF")]
+                inputValue = object ["location" .= ("SF" :: T.Text)]
                 resp =
                     MessageResponse
                         (MessageId "msg_1")
                         "message"
                         Assistant
                         [ TextBlock "I'll check the weather." Nothing
-                        , ToolUseBlock toolId "get_weather" input Nothing
+                        , ToolUseBlock toolId "get_weather" (ToolUseInput inputObj) Nothing
                         ]
                         (ModelId "claude")
                         (Just ToolUse)
@@ -59,7 +61,7 @@ spec = describe "Tools" $ do
             let (cid, name, inp) = head calls
             cid `shouldBe` toolId
             name `shouldBe` "get_weather"
-            inp `shouldBe` input
+            inp `shouldBe` inputValue
 
         it "extracts multiple tool calls" $ do
             let resp =
@@ -67,9 +69,9 @@ spec = describe "Tools" $ do
                         (MessageId "msg_1")
                         "message"
                         Assistant
-                        [ ToolUseBlock (ToolCallId "t1") "tool_a" Null Nothing
+                        [ ToolUseBlock (ToolCallId "t1") "tool_a" (ToolUseInput KM.empty) Nothing
                         , TextBlock "between" Nothing
-                        , ToolUseBlock (ToolCallId "t2") "tool_b" Null Nothing
+                        , ToolUseBlock (ToolCallId "t2") "tool_b" (ToolUseInput KM.empty) Nothing
                         ]
                         (ModelId "claude")
                         (Just ToolUse)

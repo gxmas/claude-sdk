@@ -65,7 +65,7 @@ defineTool name desc props = Tool name (Just desc) (objectSchema props) Nothing
 -- @
 extractToolCalls :: MessageResponse -> [(ToolCallId, Text, Value)]
 extractToolCalls resp =
-  [ (blockToolUseId block, blockToolName block, blockToolInput block)
+  [ (blockToolUseId block, blockToolName block, Object (unToolUseInput (blockToolInput block)))
   | block <- responseContent resp
   , isToolUse block
   ]

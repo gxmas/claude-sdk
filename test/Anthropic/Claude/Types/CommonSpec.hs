@@ -6,8 +6,9 @@ module Anthropic.Claude.Types.CommonSpec (spec) where
 
 import Anthropic.Claude.Types.Common
 import Anthropic.Claude.Types.Core
-import Data.Aeson (Value(..), decode, encode, object)
+import Data.Aeson (Value(..), decode, encode)
 import Data.Aeson.Key (fromText)
+import qualified Data.Aeson.KeyMap as KM
 import qualified Data.Text as T
 import Test.Hspec
 import Test.QuickCheck
@@ -38,22 +39,21 @@ instance Arbitrary ToolResultContent where
     , (1, ToolResultBlocks <$> resize 2 arbitrary)
     ]
 
+instance Arbitrary ToolUseInput where
+  arbitrary = ToolUseInput <$> genObject
+    where
+      genText = T.pack <$> listOf1 (elements ['a'..'z'])
+      genObject = KM.fromList <$> listOf ((,) <$> (fromText <$> genText) <*> (String <$> genText))
+
 instance Arbitrary ContentBlock where
   arbitrary = oneof
     [ TextBlock <$> genText <*> arbitrary
     , ImageBlock <$> arbitrary <*> arbitrary
-    , ToolUseBlock <$> arbitrary <*> genText <*> genJsonValue <*> arbitrary
+    , ToolUseBlock <$> arbitrary <*> genText <*> arbitrary <*> arbitrary
     , ToolResultBlock <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
     ]
     where
       genText = T.pack <$> listOf1 (elements ['a'..'z'])
-      genJsonValue = oneof
-        [ String <$> genText
-        , Number . fromIntegral <$> (arbitrary :: Gen Int)
-        , Bool <$> arbitrary
-        , pure Null
-        , object <$> listOf ((,) <$> (fromText <$> genText) <*> (String <$> genText))
-        ]
 
 instance Arbitrary MessageContent where
   arbitrary = oneof
@@ -147,7 +147,7 @@ spec = describe "Types.Common" $ do
         _ -> expectationFailure "Failed to roundtrip ImageBlock"
 
     it "encodes ToolUseBlock with correct type field" $ do
-      let block = ToolUseBlock (ToolCallId "id") "tool" Null Nothing
+      let block = ToolUseBlock (ToolCallId "id") "tool" (ToolUseInput KM.empty) Nothing
       case decode (encode block) of
         Just (ToolUseBlock _ _ _ _) -> pure ()
         _ -> expectationFailure "Failed to roundtrip ToolUseBlock"
@@ -194,8 +194,8 @@ spec = describe "Types.Common" $ do
       block `shouldBe` ImageBlock (Base64Source "image/png" "data123") Nothing
 
     it "toolUseBlock creates ToolUseBlock" $ do
-      let block = toolUseBlock (ToolCallId "id") "tool" Null
-      block `shouldBe` ToolUseBlock (ToolCallId "id") "tool" Null Nothing
+      let block = toolUseBlock (ToolCallId "id") "tool" KM.empty
+      block `shouldBe` ToolUseBlock (ToolCallId "id") "tool" (ToolUseInput KM.empty) Nothing
 
     it "toolResultText creates ToolResultBlock with text content" $ do
       let block = toolResultText (ToolCallId "id") "success" Nothing
@@ -204,6 +204,36 @@ spec = describe "Types.Common" $ do
     it "toolResultBlocks creates ToolResultBlock with blocks content" $ do
       let block = toolResultBlocks (ToolCallId "id") [textBlock "result"] (Just False)
       block `shouldBe` ToolResultBlock (ToolCallId "id") (ToolResultBlocks [textBlock "result"]) (Just False) Nothing
+
+  describe "ToolUseInput" $ do
+    it "parses JSON object as ToolUseInput" $ do
+      let json = "{\"location\":\"SF\",\"unit\":\"celsius\"}"
+      case decode json of
+        Just (ToolUseInput obj) -> KM.member "location" obj `shouldBe` True
+        Nothing -> expectationFailure "Failed to parse ToolUseInput from object"
+
+    it "rejects JSON string" $ do
+      let json = "\"not an object\""
+      (decode json :: Maybe ToolUseInput) `shouldBe` Nothing
+
+    it "rejects JSON number" $ do
+      let json = "42"
+      (decode json :: Maybe ToolUseInput) `shouldBe` Nothing
+
+    it "rejects JSON boolean" $ do
+      let json = "true"
+      (decode json :: Maybe ToolUseInput) `shouldBe` Nothing
+
+    it "rejects JSON null" $ do
+      let json = "null"
+      (decode json :: Maybe ToolUseInput) `shouldBe` Nothing
+
+    it "rejects JSON array" $ do
+      let json = "[1,2,3]"
+      (decode json :: Maybe ToolUseInput) `shouldBe` Nothing
+
+    it "round-trips through JSON" $ property $
+      \(input :: ToolUseInput) -> decode (encode input) === Just input
 
   describe "Cache Control on ContentBlock" $ do
     it "omits cache_control when Nothing" $ do
