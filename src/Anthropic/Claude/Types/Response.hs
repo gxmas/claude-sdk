@@ -24,7 +24,8 @@ module Anthropic.Claude.Types.Response
   ) where
 
 import Anthropic.Claude.Internal.JSON
-import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.ContentBlock
+import Anthropic.Claude.Types.RateLimitInfo (RateLimitInfo)
 import Anthropic.Claude.Types.Core
 import Control.Exception (Exception, throwIO)
 import Data.Aeson.KeyMap (toList)

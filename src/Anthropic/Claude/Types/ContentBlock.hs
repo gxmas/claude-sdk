@@ -1,29 +1,28 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- |
--- Module      : Anthropic.Claude.Types.Common
--- Description : Common types shared across requests and responses
+-- Module      : Anthropic.Claude.Types.ContentBlock
+-- Description : Content block types and their dependencies
 -- Copyright   : (c) 2026 Geoffrey Noël
 -- License     : MIT
 -- Maintainer  : noel.geoff@gmail.com
 --
--- Common types shared across multiple modules, including content blocks,
--- cache control, and rate limit information. This module breaks potential
--- circular dependencies by housing types that would otherwise cause
--- import cycles between Types.Client and Types.Observability/Logging.
-module Anthropic.Claude.Types.Common
+-- Content block types for Claude API messages. A 'ContentBlock' represents
+-- a single piece of content in a message (text, image, tool use, or tool result).
+--
+-- This module contains:
+--
+-- * 'ContentBlock' and its 4 constructors (TextBlock, ImageBlock, ToolUseBlock, ToolResultBlock)
+-- * Direct dependencies of ContentBlock (CacheControl, ImageSource, ToolResultContent, ToolUseInput)
+-- * Helper constructors and combinators
+module Anthropic.Claude.Types.ContentBlock
   ( -- * Content Types
     ContentBlock (..),
     ImageSource (..),
-    MessageContent (..),
     CacheControl (..),
     ToolResultContent (..),
     ToolUseInput (..),
-
-    -- * Rate Limiting
-    RateLimitInfo (..),
 
     -- * Helper Constructors
     textBlock,
@@ -249,24 +248,6 @@ instance ToJSON ContentBlock where
           ("cache_control" .=) <$> cc
         ]
 
--- | Message content (either text or list of content blocks)
---
--- For simple cases, messages can contain just a text string.
--- For complex cases (images, tool use), use a list of ContentBlocks.
-data MessageContent
-  = TextContent Text
-  | BlocksContent [ContentBlock]
-  deriving (Eq, Show, Generic)
-
-instance FromJSON MessageContent where
-  parseJSON v =
-    (TextContent <$> parseJSON v)
-      <|> (BlocksContent <$> parseJSON v)
-
-instance ToJSON MessageContent where
-  toJSON (TextContent t) = toJSON t
-  toJSON (BlocksContent blocks) = toJSON blocks
-
 -- | Smart constructor for text blocks
 textBlock :: Text -> ContentBlock
 textBlock t = TextBlock t Nothing
@@ -310,30 +291,3 @@ withCacheControl cc block = block {blockCacheControl = Just cc}
 -- | The "ephemeral" cache control value (currently the only supported type)
 ephemeralCacheControl :: CacheControl
 ephemeralCacheControl = CacheControl "ephemeral"
-
--- | Rate limit information from API response headers
---
--- Per ADR 0004, rate limit metadata is carried in APIResponse wrapper.
--- All fields are Maybe because not all endpoints return all headers.
-data RateLimitInfo = RateLimitInfo
-  { -- | Requests allowed in window
-    rateLimitRequests :: Maybe Int,
-    -- | Tokens allowed in window
-    rateLimitTokens :: Maybe Int,
-    -- | Requests remaining
-    rateLimitRemaining :: Maybe Int,
-    -- | Tokens remaining
-    rateLimitTokensRemaining :: Maybe Int,
-    -- | Seconds until request limit resets
-    rateLimitResetRequests :: Maybe Int,
-    -- | Seconds until token limit resets
-    rateLimitResetTokens :: Maybe Int
-  }
-  deriving (Eq, Show, Generic)
-
-instance FromJSON RateLimitInfo where
-  parseJSON = genericParseJSON (prefixOptions "rateLimit")
-
-instance ToJSON RateLimitInfo where
-  toJSON = genericToJSON (prefixOptions "rateLimit")
-  toEncoding = genericToEncoding (prefixOptions "rateLimit")

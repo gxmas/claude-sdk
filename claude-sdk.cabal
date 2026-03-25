@@ -31,7 +31,8 @@ library
   exposed-modules:  Anthropic.Claude
                     Anthropic.Claude.Types
                     Anthropic.Claude.Types.Core
-                    Anthropic.Claude.Types.Common
+                    Anthropic.Claude.Types.ContentBlock
+                    Anthropic.Claude.Types.RateLimitInfo
                     Anthropic.Claude.Types.Error
                     Anthropic.Claude.Types.Client
                     Anthropic.Claude.Types.Schema
@@ -105,7 +106,7 @@ test-suite claude-sdk-test
   type:             exitcode-stdio-1.0
   main-is:          Spec.hs
   other-modules:    Anthropic.Claude.Types.CoreSpec
-                    Anthropic.Claude.Types.CommonSpec
+                    Anthropic.Claude.Types.ContentBlockSpec
                     Anthropic.Claude.Types.ErrorSpec
                     Anthropic.Claude.Types.ClientSpec
                     Anthropic.Claude.Types.SchemaSpec

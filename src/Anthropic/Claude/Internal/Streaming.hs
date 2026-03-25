@@ -29,7 +29,7 @@ module Anthropic.Claude.Internal.Streaming
 import Anthropic.Claude.Internal.HTTP
 import Anthropic.Claude.Internal.SSE
 import Anthropic.Claude.Types.Client
-import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.ContentBlock
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
 import Anthropic.Claude.Types.Logging (logHttpRequest, logHttpResponse)

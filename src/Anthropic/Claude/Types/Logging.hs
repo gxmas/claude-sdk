@@ -44,7 +44,7 @@ module Anthropic.Claude.Types.Logging
   , showLevel
   ) where
 
-import Anthropic.Claude.Types.Common (RateLimitInfo(..))
+import Anthropic.Claude.Types.RateLimitInfo (RateLimitInfo(..))
 import Anthropic.Claude.Types.Core (RequestId(..))
 import Anthropic.Claude.Types.Error (APIError(..), ErrorDetails(..), isRetryable)
 import qualified Data.ByteString as BS

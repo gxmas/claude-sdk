@@ -29,7 +29,7 @@ module Anthropic.Claude.Types.Client
   ) where
 
 import Anthropic.Claude.Internal.JSON
-import Anthropic.Claude.Types.Common (RateLimitInfo(..))
+import Anthropic.Claude.Types.RateLimitInfo (RateLimitInfo(..))
 import Anthropic.Claude.Types.Core (ApiKey)
 import Anthropic.Claude.Types.Logging (LogSettings)
 import Anthropic.Claude.Types.Observability (APIEvent)

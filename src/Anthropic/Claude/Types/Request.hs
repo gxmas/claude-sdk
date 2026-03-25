@@ -16,6 +16,7 @@ module Anthropic.Claude.Types.Request
   ( -- * Request Types
     CreateMessageRequest(..)
   , Message(..)
+  , MessageContent(..)
   , Tool(..)
   , ToolChoice(..)
   , SystemContent(..)
@@ -31,7 +32,7 @@ module Anthropic.Claude.Types.Request
   ) where
 
 import Anthropic.Claude.Internal.JSON
-import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.ContentBlock
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Schema (JsonSchema)
 import Control.Applicative ((<|>))
@@ -40,6 +41,24 @@ import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
+
+-- | Message content (either text or list of content blocks)
+--
+-- For simple cases, messages can contain just a text string.
+-- For complex cases (images, tool use), use a list of ContentBlocks.
+data MessageContent
+  = TextContent Text
+  | BlocksContent [ContentBlock]
+  deriving (Eq, Show, Generic)
+
+instance FromJSON MessageContent where
+  parseJSON v =
+    (TextContent <$> parseJSON v)
+      <|> (BlocksContent <$> parseJSON v)
+
+instance ToJSON MessageContent where
+  toJSON (TextContent t) = toJSON t
+  toJSON (BlocksContent blocks) = toJSON blocks
 
 -- | A message in the conversation
 data Message = Message

@@ -4,7 +4,7 @@ module Anthropic.Claude.Internal.StreamingSpec (spec) where
 
 import Anthropic.Claude.Internal.SSE
 import Anthropic.Claude.Internal.Streaming
-import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.ContentBlock
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
 import Anthropic.Claude.Types.Response

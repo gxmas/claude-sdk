@@ -31,7 +31,7 @@ module Anthropic.Claude.Types.Observability
   , emitEvent
   ) where
 
-import Anthropic.Claude.Types.Common (RateLimitInfo)
+import Anthropic.Claude.Types.RateLimitInfo (RateLimitInfo)
 import Anthropic.Claude.Types.Core (RequestId)
 import Anthropic.Claude.Types.Error (APIError)
 import Data.Text (Text)

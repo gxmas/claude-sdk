@@ -6,7 +6,7 @@ module Anthropic.Claude.Types.RequestSpec (spec) where
 
 import Anthropic.Claude.Types.Request
 import Anthropic.Claude.Types.Core
-import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.ContentBlock (ContentBlock(..), CacheControl(..), textBlock)
 import Anthropic.Claude.Types.Schema
 import Data.Aeson (decode, encode)
 import qualified Data.Text as T
@@ -18,10 +18,13 @@ import Test.QuickCheck
 genText :: Gen T.Text
 genText = T.pack <$> listOf1 (elements ['a'..'z'])
 
+instance Arbitrary MessageContent where
+  arbitrary = TextContent <$> genText
+
 instance Arbitrary Message where
   arbitrary = Message
     <$> elements [User, Assistant]
-    <*> (TextContent <$> genText)
+    <*> arbitrary
 
 instance Arbitrary SchemaType where
   arbitrary = elements
@@ -82,6 +85,30 @@ instance Arbitrary CreateMessageRequest where
 
 spec :: Spec
 spec = describe "Types.Request" $ do
+
+  describe "MessageContent" $ do
+    it "parses text content as TextContent" $ do
+      let json = "\"Hello, world!\""
+      decode json `shouldBe` Just (TextContent "Hello, world!")
+
+    it "parses array as BlocksContent" $ do
+      let json = "[{\"type\":\"text\",\"text\":\"Hello\"}]"
+      case decode json of
+        Just (BlocksContent [TextBlock "Hello" Nothing]) -> pure ()
+        _ -> expectationFailure "Failed to parse BlocksContent"
+
+    it "encodes TextContent as plain string" $ do
+      let content = TextContent "test"
+      encode content `shouldBe` "\"test\""
+
+    it "encodes BlocksContent as array" $ do
+      let content = BlocksContent [textBlock "hello"]
+      case decode (encode content) of
+        Just (BlocksContent _) -> pure ()
+        _ -> expectationFailure "Failed to encode BlocksContent as array"
+
+    it "round-trips through JSON" $ property $
+      \(content :: MessageContent) -> decode (encode content) === Just content
 
   describe "Message" $ do
     it "round-trips through JSON" $ property $

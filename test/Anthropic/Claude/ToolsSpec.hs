@@ -3,7 +3,7 @@
 module Anthropic.Claude.ToolsSpec (spec) where
 
 import Anthropic.Claude.Tools
-import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.ContentBlock
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Request (Tool (..))
 import Anthropic.Claude.Types.Response

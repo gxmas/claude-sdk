@@ -6,7 +6,7 @@ module Anthropic.Claude.Types.ResponseSpec (spec) where
 
 import Anthropic.Claude.Types.Response
 import Anthropic.Claude.Types.Core
-import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.ContentBlock
 import Data.Aeson (decode, encode)
 import qualified Data.Text as T
 import Test.Hspec

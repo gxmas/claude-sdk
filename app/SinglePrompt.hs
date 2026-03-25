@@ -1,16 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- |
-Single-prompt executable for testing the Claude SDK.
-
-Reads ANTHROPIC_API_KEY from environment, prompts user for input,
-sends to Claude API, and prints the response or error.
--}
+-- |
+-- Single-prompt executable for testing the Claude SDK.
+--
+-- Reads ANTHROPIC_API_KEY from environment, prompts user for input,
+-- sends to Claude API, and prints the response or error.
 module Main (main) where
 
-import Anthropic.Claude.Types
 import Anthropic.Claude.Client (mkClientEnv, withLogger)
 import Anthropic.Claude.Messages
+import Anthropic.Claude.Types
+import Control.Monad (when)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import System.Environment (lookupEnv)
@@ -34,9 +34,7 @@ main = do
   prompt <- TIO.getLine
 
   -- Validate prompt
-  if T.null prompt
-    then die "Error: Prompt cannot be empty"
-    else pure ()
+  when (T.null prompt) $ die "Error: Prompt cannot be empty"
 
   -- Create request
   let request = mkRequest claude4Sonnet [userMsg prompt] 1024
@@ -52,7 +50,6 @@ main = do
       putStrLn $ "  Kind: " ++ show (errorKind err)
       putStrLn $ "  Message: " ++ T.unpack (errorMessage $ errorDetails err)
       putStrLn $ "  Status Code: " ++ show (errorStatusCode err)
-
     Right response -> do
       let message = apiResponseBody response
           text = extractText message
@@ -61,7 +58,7 @@ main = do
       putStrLn "\n✅ Response from Claude:\n"
       TIO.putStrLn text
 
-      putStrLn $ "\nUsage:"
+      putStrLn "\nUsage:"
       putStrLn $ "  Input tokens: " ++ show (usageInputTokens usage)
       putStrLn $ "  Output tokens: " ++ show (usageOutputTokens usage)
 

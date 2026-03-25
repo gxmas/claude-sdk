@@ -29,7 +29,7 @@ module Anthropic.Claude.Types.Stream
   ) where
 
 import Anthropic.Claude.Internal.JSON
-import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.ContentBlock
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Response (Usage, MessageResponse)
 import qualified Data.Aeson.KeyMap as KM

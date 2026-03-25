@@ -2,9 +2,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module Anthropic.Claude.Types.CommonSpec (spec) where
+module Anthropic.Claude.Types.ContentBlockSpec (spec) where
 
-import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.ContentBlock
 import Anthropic.Claude.Types.Core
 import Data.Aeson (Value(..), decode, encode)
 import Data.Aeson.Key (fromText)
@@ -55,16 +55,10 @@ instance Arbitrary ContentBlock where
     where
       genText = T.pack <$> listOf1 (elements ['a'..'z'])
 
-instance Arbitrary MessageContent where
-  arbitrary = oneof
-    [ TextContent <$> (T.pack <$> listOf1 (elements ['a'..'z']))
-    , BlocksContent <$> listOf1 arbitrary
-    ]
-
 -- Test Suite
 
 spec :: Spec
-spec = describe "Types.Common" $ do
+spec = describe "Types.ContentBlock" $ do
 
   describe "CacheControl" $ do
     it "round-trips through JSON" $ property $
@@ -160,30 +154,6 @@ spec = describe "Types.Common" $ do
 
     it "round-trips through JSON" $ property $
       \(block :: ContentBlock) -> decode (encode block) === Just block
-
-  describe "MessageContent" $ do
-    it "parses text content as TextContent" $ do
-      let json = "\"Hello, world!\""
-      decode json `shouldBe` Just (TextContent "Hello, world!")
-
-    it "parses array as BlocksContent" $ do
-      let json = "[{\"type\":\"text\",\"text\":\"Hello\"}]"
-      case decode json of
-        Just (BlocksContent [TextBlock "Hello" Nothing]) -> pure ()
-        _ -> expectationFailure "Failed to parse BlocksContent"
-
-    it "encodes TextContent as plain string" $ do
-      let content = TextContent "test"
-      encode content `shouldBe` "\"test\""
-
-    it "encodes BlocksContent as array" $ do
-      let content = BlocksContent [TextBlock "hello" Nothing]
-      case decode (encode content) of
-        Just (BlocksContent _) -> pure ()
-        _ -> expectationFailure "Failed to encode BlocksContent as array"
-
-    it "round-trips through JSON" $ property $
-      \(content :: MessageContent) -> decode (encode content) === Just content
 
   describe "Helper Constructors" $ do
     it "textBlock creates TextBlock" $ do

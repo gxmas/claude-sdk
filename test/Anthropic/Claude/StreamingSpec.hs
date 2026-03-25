@@ -7,7 +7,7 @@ import Anthropic.Claude.Internal.SSE (buildSSEEvents)
 import Anthropic.Claude.Internal.Streaming (decodeSSEEvent, defaultMessageResponse, updateMessageResponse)
 import Anthropic.Claude.Streaming
 import Anthropic.Claude.TestHelpers
-import Anthropic.Claude.Types.Common
+import Anthropic.Claude.Types.ContentBlock
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
 import Anthropic.Claude.Types.Response
