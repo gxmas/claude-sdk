@@ -32,12 +32,18 @@ instance Arbitrary ToolCallId where
     where
       genText = T.pack <$> listOf1 (elements ['a'..'z'])
 
+instance Arbitrary ToolResultContent where
+  arbitrary = frequency
+    [ (3, ToolResultText . T.pack <$> listOf1 (elements ['a'..'z']))
+    , (1, ToolResultBlocks <$> resize 2 arbitrary)
+    ]
+
 instance Arbitrary ContentBlock where
   arbitrary = oneof
     [ TextBlock <$> genText <*> arbitrary
     , ImageBlock <$> arbitrary <*> arbitrary
     , ToolUseBlock <$> arbitrary <*> genText <*> genJsonValue <*> arbitrary
-    , ToolResultBlock <$> arbitrary <*> genJsonValue <*> arbitrary <*> arbitrary
+    , ToolResultBlock <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
     ]
     where
       genText = T.pack <$> listOf1 (elements ['a'..'z'])
@@ -116,11 +122,17 @@ spec = describe "Types.Common" $ do
           name `shouldBe` "get_weather"
         _ -> expectationFailure "Failed to parse ToolUseBlock"
 
-    it "parses ToolResultBlock from JSON" $ do
-      let json = "{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_123\",\"content\":{\"temp\":72},\"is_error\":false}"
+    it "parses ToolResultBlock from JSON (text content)" $ do
+      let json = "{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_123\",\"content\":\"success\",\"is_error\":false}"
       case decode json of
-        Just (ToolResultBlock _ _ isErr _) -> isErr `shouldBe` Just False
-        _ -> expectationFailure "Failed to parse ToolResultBlock"
+        Just (ToolResultBlock _ (ToolResultText "success") isErr _) -> isErr `shouldBe` Just False
+        _ -> expectationFailure "Failed to parse ToolResultBlock with text content"
+
+    it "parses ToolResultBlock from JSON (blocks content)" $ do
+      let json = "{\"type\":\"tool_result\",\"tool_use_id\":\"toolu_123\",\"content\":[{\"type\":\"text\",\"text\":\"result\"}],\"is_error\":false}"
+      case decode json of
+        Just (ToolResultBlock _ (ToolResultBlocks _) isErr _) -> isErr `shouldBe` Just False
+        _ -> expectationFailure "Failed to parse ToolResultBlock with blocks content"
 
     it "encodes TextBlock with correct type field" $ do
       let block = TextBlock "test" Nothing
@@ -141,7 +153,7 @@ spec = describe "Types.Common" $ do
         _ -> expectationFailure "Failed to roundtrip ToolUseBlock"
 
     it "encodes ToolResultBlock with correct type field" $ do
-      let block = ToolResultBlock (ToolCallId "id") Null Nothing Nothing
+      let block = ToolResultBlock (ToolCallId "id") (ToolResultText "test") Nothing Nothing
       case decode (encode block) of
         Just (ToolResultBlock _ _ _ _) -> pure ()
         _ -> expectationFailure "Failed to roundtrip ToolResultBlock"
@@ -185,9 +197,13 @@ spec = describe "Types.Common" $ do
       let block = toolUseBlock (ToolCallId "id") "tool" Null
       block `shouldBe` ToolUseBlock (ToolCallId "id") "tool" Null Nothing
 
-    it "toolResultBlock creates ToolResultBlock" $ do
-      let block = toolResultBlock (ToolCallId "id") (String "result") (Just False)
-      block `shouldBe` ToolResultBlock (ToolCallId "id") (String "result") (Just False) Nothing
+    it "toolResultText creates ToolResultBlock with text content" $ do
+      let block = toolResultText (ToolCallId "id") "success" Nothing
+      block `shouldBe` ToolResultBlock (ToolCallId "id") (ToolResultText "success") Nothing Nothing
+
+    it "toolResultBlocks creates ToolResultBlock with blocks content" $ do
+      let block = toolResultBlocks (ToolCallId "id") [textBlock "result"] (Just False)
+      block `shouldBe` ToolResultBlock (ToolCallId "id") (ToolResultBlocks [textBlock "result"]) (Just False) Nothing
 
   describe "Cache Control on ContentBlock" $ do
     it "omits cache_control when Nothing" $ do

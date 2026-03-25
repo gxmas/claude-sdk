@@ -95,11 +95,15 @@ spec = describe "Tools" $ do
             let toolId = ToolCallId "toolu_123"
                 result = object ["temperature" .= (72 :: Int)]
                 block = buildToolResult toolId result
-            block `shouldBe` ToolResultBlock toolId result (Just False) Nothing
+            -- buildToolResult converts Value to ToolResultContent
+            case block of
+                ToolResultBlock tid (ToolResultText _) isErr _ ->
+                    (tid, isErr) `shouldBe` (toolId, Just False)
+                _ -> expectationFailure "Expected ToolResultBlock with ToolResultText"
 
     describe "buildToolError" $ do
         it "creates ToolResultBlock with is_error=True" $ do
             let toolId = ToolCallId "toolu_123"
-                errMsg = String "Location not found"
+                errMsg = "Location not found"
                 block = buildToolError toolId errMsg
-            block `shouldBe` ToolResultBlock toolId errMsg (Just True) Nothing
+            block `shouldBe` ToolResultBlock toolId (ToolResultText "Location not found") (Just True) Nothing

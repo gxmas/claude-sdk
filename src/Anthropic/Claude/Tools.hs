@@ -29,7 +29,9 @@ import Anthropic.Claude.Types.Request (Tool(..))
 import Anthropic.Claude.Types.Response (MessageResponse(..))
 import Anthropic.Claude.Types.Schema
 import Data.Aeson (Value(..))
+import Data.Aeson.Text (encodeToLazyText)
 import Data.Text (Text)
+import qualified Data.Text.Lazy as TL
 
 -- | Define a tool with name, description, and properties.
 --
@@ -73,18 +75,22 @@ extractToolCalls resp =
 
 -- | Build a tool result content block for a successful tool execution.
 --
+-- The Value is JSON-encoded to text for the API.
+--
 -- Example:
 -- @
 -- let result = buildToolResult toolCallId (object ["temperature" .= (72 :: Int)])
+-- -- Produces: ToolResultText "{\"temperature\":72}"
 -- @
 buildToolResult :: ToolCallId -> Value -> ContentBlock
-buildToolResult toolId result = ToolResultBlock toolId result (Just False) Nothing
+buildToolResult toolId result =
+  toolResultText toolId (TL.toStrict (encodeToLazyText result)) (Just False)
 
 -- | Build a tool result content block for a failed tool execution.
 --
 -- Example:
 -- @
--- let err = buildToolError toolCallId (String "Location not found")
+-- let err = buildToolError toolCallId "Location not found"
 -- @
-buildToolError :: ToolCallId -> Value -> ContentBlock
-buildToolError toolId errMsg = ToolResultBlock toolId errMsg (Just True) Nothing
+buildToolError :: ToolCallId -> Text -> ContentBlock
+buildToolError toolId errMsg = toolResultText toolId errMsg (Just True)

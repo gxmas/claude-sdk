@@ -20,6 +20,7 @@ module Anthropic.Claude.Types.Common
   , ImageSource(..)
   , MessageContent(..)
   , CacheControl(..)
+  , ToolResultContent(..)
 
     -- * Rate Limiting
   , RateLimitInfo(..)
@@ -28,7 +29,8 @@ module Anthropic.Claude.Types.Common
   , textBlock
   , imageBlock
   , toolUseBlock
-  , toolResultBlock
+  , toolResultText
+  , toolResultBlocks
 
     -- * Cache Control Helpers
   , withCacheControl
@@ -91,6 +93,27 @@ instance ToJSON ImageSource where
     , "url" .= url
     ]
 
+-- | Tool result content
+--
+-- Per the Anthropic API spec, tool_result content must be either:
+-- * A text string
+-- * An array of content blocks (text, image, etc.)
+--
+-- This type enforces API compliance at compile time, preventing invalid
+-- structures like Number, Bool, Null, or arbitrary Objects.
+data ToolResultContent
+  = ToolResultText Text                -- ^ Simple text result
+  | ToolResultBlocks [ContentBlock]    -- ^ Rich content with multiple blocks
+  deriving (Eq, Show, Generic)
+
+instance FromJSON ToolResultContent where
+  parseJSON v = (ToolResultText <$> parseJSON v)
+            <|> (ToolResultBlocks <$> parseJSON v)
+
+instance ToJSON ToolResultContent where
+  toJSON (ToolResultText t) = toJSON t
+  toJSON (ToolResultBlocks blocks) = toJSON blocks
+
 -- | Content block in a message
 --
 -- Messages consist of one or more content blocks. This discriminated union
@@ -116,10 +139,10 @@ data ContentBlock
       , blockCacheControl :: Maybe CacheControl -- ^ Cache control for prompt caching
       }
   | ToolResultBlock
-      { blockToolResultId :: ToolCallId      -- ^ ID matching the ToolUseBlock
-      , blockToolResult :: Value             -- ^ Tool execution result (JSON)
-      , blockIsError :: Maybe Bool           -- ^ Whether the tool call resulted in an error
-      , blockCacheControl :: Maybe CacheControl -- ^ Cache control for prompt caching
+      { blockToolResultId :: ToolCallId           -- ^ ID matching the ToolUseBlock
+      , blockToolResult :: ToolResultContent      -- ^ Tool execution result
+      , blockIsError :: Maybe Bool                -- ^ Whether the tool call resulted in an error
+      , blockCacheControl :: Maybe CacheControl   -- ^ Cache control for prompt caching
       }
   deriving (Eq, Show, Generic)
 
@@ -199,9 +222,23 @@ imageBlock mediaType b64Data =
 toolUseBlock :: ToolCallId -> Text -> Value -> ContentBlock
 toolUseBlock tid n i = ToolUseBlock tid n i Nothing
 
--- | Smart constructor for tool result blocks
-toolResultBlock :: ToolCallId -> Value -> Maybe Bool -> ContentBlock
-toolResultBlock tid r e = ToolResultBlock tid r e Nothing
+-- | Smart constructor for text tool results
+--
+-- Use this for simple string results:
+-- @
+-- toolResultText toolId "The weather is 72°F" Nothing
+-- @
+toolResultText :: ToolCallId -> Text -> Maybe Bool -> ContentBlock
+toolResultText tid txt e = ToolResultBlock tid (ToolResultText txt) e Nothing
+
+-- | Smart constructor for rich tool results with content blocks
+--
+-- Use this for results with images, formatted text, etc.:
+-- @
+-- toolResultBlocks toolId [textBlock "Result:", imageBlock "image/png" base64Data] Nothing
+-- @
+toolResultBlocks :: ToolCallId -> [ContentBlock] -> Maybe Bool -> ContentBlock
+toolResultBlocks tid blocks e = ToolResultBlock tid (ToolResultBlocks blocks) e Nothing
 
 -- | Add cache control to any content block
 withCacheControl :: CacheControl -> ContentBlock -> ContentBlock
