@@ -35,7 +35,9 @@ import Anthropic.Claude.Types.RateLimitInfo (RateLimitInfo)
 import Data.Text (Text)
 import Data.Time.Clock (NominalDiffTime, UTCTime)
 
--- | An event handler receives 'APIEvent' values at lifecycle points.
+-- | An event handler receives API events at lifecycle points.
+--
+-- See 'APIEvent' for the types of events that can be received.
 type EventHandler = APIEvent -> IO ()
 
 -- | SDK lifecycle events emitted during API calls.

@@ -156,7 +156,19 @@ isRetryable (APIError kind _ _) = case kind of
   OverloadedError -> True
   _ -> False
 
--- | Determine error kind from HTTP status code
+-- | Map HTTP status codes to 'APIErrorKind' classification.
+--
+-- Maps standard HTTP error codes to SDK error kinds:
+--
+-- * 400 → 'InvalidRequestError'
+-- * 401 → 'AuthenticationError'
+-- * 403 → 'PermissionError'
+-- * 404 → 'NotFoundError'
+-- * 429 → 'RateLimitError'
+-- * 500 → 'ServerError'
+-- * 529 → 'OverloadedError'
+-- * Other 5xx → 'ServerError'
+-- * Other → 'InvalidRequestError'
 errorKindFromStatus :: Status -> APIErrorKind
 errorKindFromStatus (Status code _) = case code of
   400 -> InvalidRequestError

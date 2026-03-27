@@ -99,13 +99,13 @@ instance ToJSON RequestCounts where
 
 -- | Response from batch operations (create, retrieve, list).
 data BatchResponse = BatchResponse
-  { batchResponseId :: BatchId
-  , batchResponseType :: Text
-  , batchResponseProcessingStatus :: ProcessingStatus
-  , batchResponseRequestCounts :: RequestCounts
-  , batchResponseCreatedAt :: Text
-  , batchResponseEndedAt :: Maybe Text
-  , batchResponseResultsUrl :: Maybe Text
+  { batchResponseId :: BatchId                       -- ^ Unique batch identifier
+  , batchResponseType :: Text                        -- ^ Always @"message_batch"@
+  , batchResponseProcessingStatus :: ProcessingStatus -- ^ Current processing state
+  , batchResponseRequestCounts :: RequestCounts      -- ^ Counts of requests by status
+  , batchResponseCreatedAt :: Text                   -- ^ ISO 8601 creation timestamp
+  , batchResponseEndedAt :: Maybe Text               -- ^ ISO 8601 completion timestamp
+  , batchResponseResultsUrl :: Maybe Text            -- ^ URL to download results (when @Ended@)
   } deriving (Eq, Show, Generic)
 
 instance FromJSON BatchResponse where

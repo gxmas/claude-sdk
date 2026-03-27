@@ -11,7 +11,7 @@ Logging layer for development and debugging. Provides @curl -v@ style
 output of HTTP requests and responses, retry decisions, and errors.
 
 Independent from the observability event system. Observability emits
-structured 'APIEvent' values for programmatic consumption (metrics,
+structured API events for programmatic consumption (metrics,
 tracing). Logging emits human-readable text for developer eyeballs.
 
 Zero-cost when unused: if no logger is set ('Nothing'), no log
@@ -70,7 +70,7 @@ data LogLevel = LevelDebug | LevelInfo | LevelWarn | LevelError
 -- The logger implementation decides whether to emit based on the level.
 type Logger = LogLevel -> Text -> IO ()
 
--- | Logging configuration stored in 'ClientEnv'.
+-- | Logging configuration stored in the client environment.
 data LogSettings = LogSettings
   { logLogger    :: Logger
   , logBodyLimit :: Int      -- ^ Max bytes of request/response body in debug output

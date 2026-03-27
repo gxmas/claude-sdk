@@ -8,7 +8,18 @@ License     : MIT
 Maintainer  : noel.geoff@gmail.com
 
 Operations for the Claude Message Batches API. Batches allow
-processing multiple message requests asynchronously.
+processing multiple message requests asynchronously, with lower
+costs compared to synchronous processing.
+
+= Usage
+
+1. Create a batch with 'createBatch'
+2. Poll status with 'retrieveBatch' or use 'pollBatchUntilDone'
+3. Download results from the URL when status is 'Ended'
+4. Optionally cancel with 'cancelBatch' if needed
+
+Batches process requests asynchronously and provide results via
+a downloadable JSONL file when complete.
 -}
 module Anthropic.Claude.Batch
   ( -- * Batch Operations
@@ -191,13 +202,25 @@ cancelBatch env (BatchId bid) = withRetry env $ liftIO $ do
 
 -- | Poll a batch until it reaches 'Ended' status.
 --
--- Polls at the given interval. Returns the final batch response
--- or an error if any poll fails.
+-- Continuously polls 'retrieveBatch' at the specified interval until
+-- the batch processing completes. Returns the final batch response
+-- with @resultsUrl@ populated, or the first error encountered.
+--
+-- Note: This function blocks until the batch completes. For
+-- long-running batches, consider using a background thread.
+--
+-- Example:
+-- @
+-- result <- pollBatchUntilDone env batchId 5.0  -- Poll every 5 seconds
+-- case result of
+--   Left err -> handleError err
+--   Right batch -> downloadResults (batchResponseResultsUrl batch)
+-- @
 pollBatchUntilDone
   :: MonadUnliftIO m
   => ClientEnv
   -> BatchId
-  -> NominalDiffTime    -- ^ Poll interval
+  -> NominalDiffTime    -- ^ Poll interval in seconds
   -> m (Either APIError BatchResponse)
 pollBatchUntilDone env bid interval = go
   where

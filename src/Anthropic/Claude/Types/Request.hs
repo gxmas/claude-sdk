@@ -163,20 +163,26 @@ instance ToJSON SystemContent where
   toJSON (SystemText t) = toJSON t
   toJSON (SystemBlocks blocks) = toJSON blocks
 
--- | Request to create a message
+-- | Request to create a message via the Messages API.
+--
+-- Contains all parameters for a message creation request, including model,
+-- conversation history, generation limits, and optional features like tools,
+-- system prompts, and sampling parameters.
+--
+-- Use 'mkRequest' for a simple request, or construct directly for full control.
 data CreateMessageRequest = CreateMessageRequest
-  { requestModel :: ModelId
-  , requestMessages :: [Message]
-  , requestMaxTokens :: Int
-  , requestMetadata :: Maybe Value
-  , requestStopSequences :: Maybe [Text]
-  , requestStream :: Maybe Bool
-  , requestSystem :: Maybe SystemContent
-  , requestTemperature :: Maybe Double
-  , requestToolChoice :: Maybe ToolChoice
-  , requestTools :: Maybe [Tool]
-  , requestTopK :: Maybe Int
-  , requestTopP :: Maybe Double
+  { requestModel :: ModelId            -- ^ Model identifier (e.g., @claude4Sonnet@)
+  , requestMessages :: [Message]       -- ^ Conversation history (must be non-empty)
+  , requestMaxTokens :: Int            -- ^ Maximum tokens to generate (must be positive)
+  , requestMetadata :: Maybe Value     -- ^ User-defined metadata (opaque to the API)
+  , requestStopSequences :: Maybe [Text] -- ^ Custom stop sequences
+  , requestStream :: Maybe Bool        -- ^ Enable server-sent events streaming
+  , requestSystem :: Maybe SystemContent -- ^ System prompt (instructions for Claude)
+  , requestTemperature :: Maybe Double -- ^ Sampling temperature (0.0-1.0, default 1.0)
+  , requestToolChoice :: Maybe ToolChoice -- ^ Tool selection strategy
+  , requestTools :: Maybe [Tool]       -- ^ Available tools for Claude to use
+  , requestTopK :: Maybe Int           -- ^ Top-k sampling parameter
+  , requestTopP :: Maybe Double        -- ^ Nucleus sampling parameter (0.0-1.0)
   } deriving (Eq, Show, Generic)
 
 instance FromJSON CreateMessageRequest where

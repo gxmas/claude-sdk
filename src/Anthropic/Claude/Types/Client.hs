@@ -37,7 +37,10 @@ import Data.Time.Clock (NominalDiffTime)
 import GHC.Generics (Generic)
 import Network.HTTP.Client (Manager)
 
--- | Backoff strategy for retries
+-- | Backoff strategy for retries.
+--
+-- Controls the delay between retry attempts. See 'RetryPolicy' for the
+-- complete retry configuration.
 data BackoffStrategy
   = ExponentialBackoff
       { exponentialBase :: NominalDiffTime  -- ^ Base delay (e.g., 1 second)

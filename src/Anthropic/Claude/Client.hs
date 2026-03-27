@@ -38,8 +38,8 @@ import Anthropic.Claude.Types.Observability (EventHandler)
 
 -- | Set the event handler for observability.
 --
--- The handler will receive 'APIEvent' values at request/response
--- lifecycle points. Use 'combineHandlers' to fan out to multiple
+-- The handler will receive API events at request/response
+-- lifecycle points. Use @combineHandlers@ to fan out to multiple
 -- observers.
 --
 -- Example:

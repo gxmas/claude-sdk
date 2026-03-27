@@ -9,6 +9,13 @@ Maintainer  : noel.geoff@gmail.com
 
 Public API for creating messages with Claude.
 Handles request construction, HTTP execution, and response parsing.
+
+This module provides the core 'createMessage' operation for synchronous
+(non-streaming) message creation. For streaming responses, use
+"Anthropic.Claude.Streaming" instead.
+
+All requests are automatically retried on transient errors (429, 500, 529)
+according to the retry policy configured in 'ClientEnv'.
 -}
 module Anthropic.Claude.Messages
   ( createMessage

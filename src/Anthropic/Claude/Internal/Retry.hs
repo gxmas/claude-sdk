@@ -46,8 +46,8 @@ import UnliftIO (MonadUnliftIO, liftIO)
 -- - 500 Server Error
 -- - 529 Overloaded
 --
--- Uses the backoff strategy from the 'ClientEnv' retry policy to
--- calculate delays. Emits 'RetryEvent' via the event handler before
+-- Uses the backoff strategy from the client environment's retry policy to
+-- calculate delays. Emits retry events via the event handler before
 -- each retry delay.
 --
 -- Example:

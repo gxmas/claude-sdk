@@ -172,7 +172,9 @@ extractRateLimitInfo headers =
          , rateLimitResetTokens = rateLimitResetTokens
          }
 
--- | Lookup a header value and parse as Int
+-- | Look up a header value and parse it as an Int.
+--
+-- Returns 'Nothing' if the header is missing or cannot be parsed.
 lookupInt :: HeaderName -> [Header] -> Maybe Int
 lookupInt name headers = do
   value <- lookup name headers

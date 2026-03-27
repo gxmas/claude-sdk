@@ -29,6 +29,42 @@ let schema = objectSchema
       , optional "email" (withFormat "email" stringSchema)
       ]
 @
+
+= Advanced Examples
+
+== Nullable Types
+
+@
+-- String that can be null
+nullableSchema stringSchema  -- { "type": ["string", "null"] }
+@
+
+== Enums
+
+@
+enumSchema [String "red", String "green", String "blue"]
+@
+
+== Nested Objects
+
+@
+objectSchema
+  [ required "person" $ objectSchema
+      [ required "name" stringSchema
+      , optional "age" integerSchema
+      ]
+  , required "tags" $ arraySchema stringSchema
+  ]
+@
+
+== Union Types (oneOf)
+
+@
+oneOfSchema
+  [ objectSchema [required "type" (enumSchema [String "email"])]
+  , objectSchema [required "type" (enumSchema [String "phone"])]
+  ]
+@
 -}
 module Anthropic.Claude.Types.Schema
   ( -- * Schema Types
