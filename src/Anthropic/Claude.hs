@@ -1,4 +1,4 @@
-{-|
+{- |
 Module      : Anthropic.Claude
 Description : Prelude and main entry point for Claude SDK
 Copyright   : (c) 2026 Geoffrey Noël
@@ -94,9 +94,9 @@ module Anthropic.Claude
   , module Anthropic.Claude.Tools
   ) where
 
-import Anthropic.Claude.Types
+import Anthropic.Claude.Batch
 import Anthropic.Claude.Client
 import Anthropic.Claude.Messages
 import Anthropic.Claude.Streaming
-import Anthropic.Claude.Batch
 import Anthropic.Claude.Tools
+import Anthropic.Claude.Types

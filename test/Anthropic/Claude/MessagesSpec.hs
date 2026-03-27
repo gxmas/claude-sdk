@@ -2,9 +2,9 @@
 
 module Anthropic.Claude.MessagesSpec (spec) where
 
-import Anthropic.Claude.Internal.HTTP (parseResponse, extractRateLimitInfo)
+import Anthropic.Claude.Internal.HTTP (extractRateLimitInfo, parseResponse)
 import Anthropic.Claude.TestHelpers
-import Anthropic.Claude.Types.Client (RateLimitInfo(..))
+import Anthropic.Claude.Types.Client (RateLimitInfo (..))
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
 import Anthropic.Claude.Types.Response
@@ -12,7 +12,6 @@ import Test.Hspec
 
 spec :: Spec
 spec = describe "Messages" $ do
-
   describe "createMessage (parseResponse)" $ do
     it "parses successful 200 response into MessageResponse" $ do
       let resp = mockSuccess sampleMessageResponseJson
@@ -72,9 +71,10 @@ spec = describe "Messages" $ do
 
   describe "extractRateLimitInfo" $ do
     it "extracts rate limit info from response headers" $ do
-      let headers = [ ("anthropic-ratelimit-requests-limit", "50")
-                    , ("anthropic-ratelimit-requests-remaining", "49")
-                    ]
+      let headers =
+            [ ("anthropic-ratelimit-requests-limit", "50")
+            , ("anthropic-ratelimit-requests-remaining", "49")
+            ]
       case extractRateLimitInfo headers of
         Just info -> do
           rateLimitRequests info `shouldBe` Just 50

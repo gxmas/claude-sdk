@@ -13,7 +13,6 @@ import Test.Hspec
 
 spec :: Spec
 spec = describe "Internal.Streaming" $ do
-
   describe "decodeSSEEvent" $ do
     it "decodes valid JSON into StreamEvent" $ do
       let sse = SSEEvent (Just "message_stop") "{\"type\":\"message_stop\"}"
@@ -35,10 +34,16 @@ spec = describe "Internal.Streaming" $ do
 
   describe "updateMessageResponse" $ do
     it "MessageStart replaces the response" $ do
-      let msg = MessageResponse
-            (MessageId "msg_123") "message" Assistant
-            [TextBlock "hello" Nothing] (ModelId "claude")
-            (Just EndTurn) Nothing (Usage 10 20 Nothing Nothing)
+      let msg =
+            MessageResponse
+              (MessageId "msg_123")
+              "message"
+              Assistant
+              [TextBlock "hello" Nothing]
+              (ModelId "claude")
+              (Just EndTurn)
+              Nothing
+              (Usage 10 20 Nothing Nothing)
           evt = MessageStart (MessageStartPayload msg)
           result = updateMessageResponse evt defaultMessageResponse
       responseId result `shouldBe` MessageId "msg_123"
@@ -50,7 +55,7 @@ spec = describe "Internal.Streaming" $ do
       length (responseContent result) `shouldBe` 1
 
     it "ContentBlockDelta appends text" $ do
-      let base = defaultMessageResponse { responseContent = [TextBlock "He" Nothing] }
+      let base = defaultMessageResponse {responseContent = [TextBlock "He" Nothing]}
           evt = ContentBlockDelta (ContentBlockDeltaPayload 0 (TextDelta "llo"))
           result = updateMessageResponse evt base
       responseContent result `shouldBe` [TextBlock "Hello" Nothing]

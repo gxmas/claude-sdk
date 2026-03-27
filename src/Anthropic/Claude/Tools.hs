@@ -1,23 +1,24 @@
--- |
--- Module      : Anthropic.Claude.Tools
--- Description : Tool use helpers
--- Copyright   : (c) 2026 Geoffrey Noël
--- License     : MIT
--- Maintainer  : noel.geoff@gmail.com
---
--- Helper functions for working with Claude's tool use feature.
--- Provides smart constructors for defining tools, extracting
--- tool calls from responses, and building tool results.
+{- |
+Module      : Anthropic.Claude.Tools
+Description : Tool use helpers
+Copyright   : (c) 2026 Geoffrey Noël
+License     : MIT
+Maintainer  : noel.geoff@gmail.com
+
+Helper functions for working with Claude's tool use feature.
+Provides smart constructors for defining tools, extracting
+tool calls from responses, and building tool results.
+-}
 module Anthropic.Claude.Tools
   ( -- * Tool Definition
-    defineTool,
+    defineTool
 
     -- * Tool Call Extraction
-    extractToolCalls,
+  , extractToolCalls
 
     -- * Tool Result Construction
-    buildToolResult,
-    buildToolError,
+  , buildToolResult
+  , buildToolError
   )
 where
 
@@ -64,12 +65,12 @@ defineTool name desc props = Tool name (Just desc) (objectSchema props) Nothing
 extractToolCalls :: MessageResponse -> [(ToolCallId, Text, Value)]
 extractToolCalls resp =
   [ (blockToolUseId block, blockToolName block, Object (unToolUseInput (blockToolInput block)))
-    | block <- responseContent resp,
-      isToolUse block
+  | block <- responseContent resp
+  , isToolUse block
   ]
-  where
-    isToolUse (ToolUseBlock {}) = True
-    isToolUse _ = False
+ where
+  isToolUse (ToolUseBlock {}) = True
+  isToolUse _ = False
 
 -- | Build a tool result content block for a successful tool execution.
 --

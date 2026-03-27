@@ -40,13 +40,13 @@ import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
 import Anthropic.Claude.Types.Logging (logHttpRequest, logHttpResponse)
 import Anthropic.Claude.Types.Observability
-import Anthropic.Claude.Types.Response (APIResponse(..))
+import Anthropic.Claude.Types.Response (APIResponse (..))
 import Control.Concurrent (threadDelay)
 import qualified Data.Aeson as Aeson
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
-import Data.Time.Clock (NominalDiffTime, getCurrentTime, diffUTCTime)
-import Network.HTTP.Client (RequestBody(..))
+import Data.Time.Clock (NominalDiffTime, diffUTCTime, getCurrentTime)
+import Network.HTTP.Client (RequestBody (..))
 import qualified Network.HTTP.Client as HTTP
 import Network.HTTP.Types.Header (Header)
 import Network.HTTP.Types.Status (statusCode)
@@ -67,8 +67,13 @@ createBatch env req = withRetry env $ liftIO $ do
   let bodyBS = Aeson.encode req
 
   startTime <- getCurrentTime
-  emitEvent handler $ HttpRequest HttpRequestEvent
-    { reqMethod = method, reqPath = pathTxt, reqTimestamp = startTime }
+  emitEvent handler
+    $ HttpRequest
+      HttpRequestEvent
+        { reqMethod = method
+        , reqPath = pathTxt
+        , reqTimestamp = startTime
+        }
   logHttpRequest logSettings method pathTxt bodyBS
 
   httpReq <- buildRequest env "POST" path (RequestBodyLBS bodyBS)
@@ -81,9 +86,14 @@ createBatch env req = withRetry env $ liftIO $ do
 
   endTime <- getCurrentTime
   let duration = diffUTCTime endTime startTime
-  emitEvent handler $ HttpResponse HttpResponseEvent
-    { respStatusCode = status, respDuration = duration
-    , respRequestId = reqId, respRateLimitInfo = rateInfo }
+  emitEvent handler
+    $ HttpResponse
+      HttpResponseEvent
+        { respStatusCode = status
+        , respDuration = duration
+        , respRequestId = reqId
+        , respRateLimitInfo = rateInfo
+        }
   logHttpResponse logSettings method pathTxt status duration reqId rateInfo (Just respBody)
 
   case parseResponse httpResp reqId of
@@ -104,8 +114,13 @@ retrieveBatch env (BatchId bid) = withRetry env $ liftIO $ do
       pathTxt = T.pack path
 
   startTime <- getCurrentTime
-  emitEvent handler $ HttpRequest HttpRequestEvent
-    { reqMethod = method, reqPath = pathTxt, reqTimestamp = startTime }
+  emitEvent handler
+    $ HttpRequest
+      HttpRequestEvent
+        { reqMethod = method
+        , reqPath = pathTxt
+        , reqTimestamp = startTime
+        }
   logHttpRequest logSettings method pathTxt ""
 
   httpReq <- buildRequest env "GET" path (RequestBodyBS "")
@@ -118,9 +133,14 @@ retrieveBatch env (BatchId bid) = withRetry env $ liftIO $ do
 
   endTime <- getCurrentTime
   let duration = diffUTCTime endTime startTime
-  emitEvent handler $ HttpResponse HttpResponseEvent
-    { respStatusCode = status, respDuration = duration
-    , respRequestId = reqId, respRateLimitInfo = rateInfo }
+  emitEvent handler
+    $ HttpResponse
+      HttpResponseEvent
+        { respStatusCode = status
+        , respDuration = duration
+        , respRequestId = reqId
+        , respRateLimitInfo = rateInfo
+        }
   logHttpResponse logSettings method pathTxt status duration reqId rateInfo (Just respBody)
 
   case parseResponse httpResp reqId of
@@ -140,8 +160,13 @@ listBatches env = withRetry env $ liftIO $ do
       pathTxt = T.pack path
 
   startTime <- getCurrentTime
-  emitEvent handler $ HttpRequest HttpRequestEvent
-    { reqMethod = method, reqPath = pathTxt, reqTimestamp = startTime }
+  emitEvent handler
+    $ HttpRequest
+      HttpRequestEvent
+        { reqMethod = method
+        , reqPath = pathTxt
+        , reqTimestamp = startTime
+        }
   logHttpRequest logSettings method pathTxt ""
 
   httpReq <- buildRequest env "GET" path (RequestBodyBS "")
@@ -154,9 +179,14 @@ listBatches env = withRetry env $ liftIO $ do
 
   endTime <- getCurrentTime
   let duration = diffUTCTime endTime startTime
-  emitEvent handler $ HttpResponse HttpResponseEvent
-    { respStatusCode = status, respDuration = duration
-    , respRequestId = reqId, respRateLimitInfo = rateInfo }
+  emitEvent handler
+    $ HttpResponse
+      HttpResponseEvent
+        { respStatusCode = status
+        , respDuration = duration
+        , respRequestId = reqId
+        , respRateLimitInfo = rateInfo
+        }
   logHttpResponse logSettings method pathTxt status duration reqId rateInfo (Just respBody)
 
   case parseResponse httpResp reqId of
@@ -177,8 +207,13 @@ cancelBatch env (BatchId bid) = withRetry env $ liftIO $ do
       pathTxt = T.pack path
 
   startTime <- getCurrentTime
-  emitEvent handler $ HttpRequest HttpRequestEvent
-    { reqMethod = method, reqPath = pathTxt, reqTimestamp = startTime }
+  emitEvent handler
+    $ HttpRequest
+      HttpRequestEvent
+        { reqMethod = method
+        , reqPath = pathTxt
+        , reqTimestamp = startTime
+        }
   logHttpRequest logSettings method pathTxt ""
 
   httpReq <- buildRequest env "POST" path (RequestBodyBS "")
@@ -191,9 +226,14 @@ cancelBatch env (BatchId bid) = withRetry env $ liftIO $ do
 
   endTime <- getCurrentTime
   let duration = diffUTCTime endTime startTime
-  emitEvent handler $ HttpResponse HttpResponseEvent
-    { respStatusCode = status, respDuration = duration
-    , respRequestId = reqId, respRateLimitInfo = rateInfo }
+  emitEvent handler
+    $ HttpResponse
+      HttpResponseEvent
+        { respStatusCode = status
+        , respDuration = duration
+        , respRequestId = reqId
+        , respRateLimitInfo = rateInfo
+        }
   logHttpResponse logSettings method pathTxt status duration reqId rateInfo (Just respBody)
 
   case parseResponse httpResp reqId of
@@ -220,21 +260,22 @@ pollBatchUntilDone
   :: MonadUnliftIO m
   => ClientEnv
   -> BatchId
-  -> NominalDiffTime    -- ^ Poll interval in seconds
+  -> NominalDiffTime
+  -- ^ Poll interval in seconds
   -> m (Either APIError BatchResponse)
 pollBatchUntilDone env bid interval = go
-  where
-    go = do
-      result <- retrieveBatch env bid
-      case result of
-        Left err -> pure $ Left err
-        Right resp ->
-          let batch = apiResponseBody resp
-          in case batchResponseProcessingStatus batch of
-            Ended -> pure $ Right batch
-            _ -> do
-              liftIO $ threadDelay (round (interval * 1000000))
-              go
+ where
+  go = do
+    result <- retrieveBatch env bid
+    case result of
+      Left err -> pure $ Left err
+      Right resp ->
+        let batch = apiResponseBody resp
+         in case batchResponseProcessingStatus batch of
+              Ended -> pure $ Right batch
+              _ -> do
+                liftIO $ threadDelay (round (interval * 1000000))
+                go
 
 -- | Extract request ID from response headers.
 extractRequestId :: [Header] -> Maybe RequestId

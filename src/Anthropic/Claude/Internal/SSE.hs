@@ -29,8 +29,8 @@ Rules:
 -}
 module Anthropic.Claude.Internal.SSE
   ( -- * SSE Types
-    SSEEvent(..)
-  , SSEField(..)
+    SSEEvent (..)
+  , SSEField (..)
 
     -- * Parsing
   , parseSSELine
@@ -45,18 +45,26 @@ import qualified Data.Text.Encoding as TE
 
 -- | A parsed SSE field from a single line.
 data SSEField
-  = DataField Text      -- ^ @data: ...@
-  | EventField Text     -- ^ @event: ...@
-  | RetryField Text     -- ^ @retry: ...@ (not used by Claude API)
-  | IdField Text        -- ^ @id: ...@ (not used by Claude API)
-  | CommentField Text   -- ^ @: ...@ (comment / keep-alive)
+  = -- | @data: ...@
+    DataField Text
+  | -- | @event: ...@
+    EventField Text
+  | -- | @retry: ...@ (not used by Claude API)
+    RetryField Text
+  | -- | @id: ...@ (not used by Claude API)
+    IdField Text
+  | -- | @: ...@ (comment / keep-alive)
+    CommentField Text
   deriving (Eq, Show)
 
 -- | A complete SSE event assembled from one or more fields.
 data SSEEvent = SSEEvent
-  { sseEventType :: Maybe Text   -- ^ The @event:@ value, if present
-  , sseEventData :: Text         -- ^ The @data:@ value(s), joined with newlines
-  } deriving (Eq, Show)
+  { sseEventType :: Maybe Text
+  -- ^ The @event:@ value, if present
+  , sseEventData :: Text
+  -- ^ The @data:@ value(s), joined with newlines
+  }
+  deriving (Eq, Show)
 
 -- | Parse a single line of SSE input into a field.
 --
@@ -78,26 +86,27 @@ data SSEEvent = SSEEvent
 -- Nothing
 parseSSELine :: BS.ByteString -> Maybe SSEField
 parseSSELine line
-  | BS.null line         = Nothing   -- empty line = event delimiter
+  | BS.null line = Nothing -- empty line = event delimiter
   | BS8.head line == ':' = Just $ CommentField (decodeField (BS.drop 1 line))
-  | otherwise            = case BS8.break (== ':') line of
+  | otherwise = case BS8.break (== ':') line of
       (field, rest)
-        | BS.null rest  -> Just $ mkField field ""  -- field with no value
-        | otherwise     ->
-            let value = BS.drop 1 rest  -- drop the ':'
-                -- strip optional leading space after ':'
-                trimmed = if not (BS.null value) && BS8.head value == ' '
-                          then BS.drop 1 value
-                          else value
-            in Just $ mkField field (decodeField trimmed)
-  where
-    decodeField = TE.decodeUtf8With (\_ _ -> Just '?')
+        | BS.null rest -> Just $ mkField field "" -- field with no value
+        | otherwise ->
+            let value = BS.drop 1 rest -- drop the ':'
+            -- strip optional leading space after ':'
+                trimmed =
+                  if not (BS.null value) && BS8.head value == ' '
+                    then BS.drop 1 value
+                    else value
+             in Just $ mkField field (decodeField trimmed)
+ where
+  decodeField = TE.decodeUtf8With (\_ _ -> Just '?')
 
-    mkField "data"  v = DataField v
-    mkField "event" v = EventField v
-    mkField "retry" v = RetryField v
-    mkField "id"    v = IdField v
-    mkField _       _ = CommentField ""  -- unknown fields treated as comments
+  mkField "data" v = DataField v
+  mkField "event" v = EventField v
+  mkField "retry" v = RetryField v
+  mkField "id" v = IdField v
+  mkField _ _ = CommentField "" -- unknown fields treated as comments
 
 -- | Assemble a list of raw SSE lines into complete events.
 --
@@ -108,27 +117,27 @@ parseSSELine line
 -- Comments and unknown fields are discarded.
 buildSSEEvents :: [BS.ByteString] -> [SSEEvent]
 buildSSEEvents = go Nothing []
-  where
-    go :: Maybe Text -> [Text] -> [BS.ByteString] -> [SSEEvent]
-    go _ [] [] = []  -- No data, no input — done
-    go eventType dataAcc [] =
-      -- End of input — flush remaining accumulated data
-      flush eventType dataAcc []
-    go eventType dataAcc (line : rest) =
-      case parseSSELine line of
-        Nothing ->
-          -- Empty line = event delimiter; emit event if we have data
-          flush eventType dataAcc rest
-        Just (DataField d) ->
-          go eventType (dataAcc ++ [d]) rest
-        Just (EventField e) ->
-          go (Just e) dataAcc rest
-        Just _ ->
-          -- Comments, retry, id — skip
-          go eventType dataAcc rest
+ where
+  go :: Maybe Text -> [Text] -> [BS.ByteString] -> [SSEEvent]
+  go _ [] [] = [] -- No data, no input — done
+  go eventType dataAcc [] =
+    -- End of input — flush remaining accumulated data
+    flush eventType dataAcc []
+  go eventType dataAcc (line : rest) =
+    case parseSSELine line of
+      Nothing ->
+        -- Empty line = event delimiter; emit event if we have data
+        flush eventType dataAcc rest
+      Just (DataField d) ->
+        go eventType (dataAcc ++ [d]) rest
+      Just (EventField e) ->
+        go (Just e) dataAcc rest
+      Just _ ->
+        -- Comments, retry, id — skip
+        go eventType dataAcc rest
 
-    flush :: Maybe Text -> [Text] -> [BS.ByteString] -> [SSEEvent]
-    flush _ [] rest = go Nothing [] rest
-    flush eventType dataAcc rest =
-      let event = SSEEvent eventType (T.intercalate "\n" dataAcc)
-      in event : go Nothing [] rest
+  flush :: Maybe Text -> [Text] -> [BS.ByteString] -> [SSEEvent]
+  flush _ [] rest = go Nothing [] rest
+  flush eventType dataAcc rest =
+    let event = SSEEvent eventType (T.intercalate "\n" dataAcc)
+     in event : go Nothing [] rest

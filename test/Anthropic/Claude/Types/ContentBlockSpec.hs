@@ -6,7 +6,7 @@ module Anthropic.Claude.Types.ContentBlockSpec (spec) where
 
 import Anthropic.Claude.Types.ContentBlock
 import Anthropic.Claude.Types.Core
-import Data.Aeson (Value(..), decode, encode)
+import Data.Aeson (Value (..), decode, encode)
 import Data.Aeson.Key (fromText)
 import qualified Data.Aeson.KeyMap as KM
 import qualified Data.Text as T
@@ -19,50 +19,53 @@ instance Arbitrary CacheControl where
   arbitrary = CacheControl <$> pure "ephemeral"
 
 instance Arbitrary ImageSource where
-  arbitrary = oneof
-    [ Base64Source <$> genMediaType <*> genBase64
-    , URLSource <$> genUrl
-    ]
-    where
-      genMediaType = elements ["image/jpeg", "image/png", "image/webp", "image/gif"]
-      genBase64 = T.pack <$> listOf1 (elements $ ['A'..'Z'] ++ ['a'..'z'] ++ ['0'..'9'] ++ ['+', '/', '='])
-      genUrl = ("https://example.com/image" <>) . T.pack . show <$> (arbitrary :: Gen Int)
+  arbitrary =
+    oneof
+      [ Base64Source <$> genMediaType <*> genBase64
+      , URLSource <$> genUrl
+      ]
+   where
+    genMediaType = elements ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    genBase64 = T.pack <$> listOf1 (elements $ ['A' .. 'Z'] ++ ['a' .. 'z'] ++ ['0' .. '9'] ++ ['+', '/', '='])
+    genUrl = ("https://example.com/image" <>) . T.pack . show <$> (arbitrary :: Gen Int)
 
 instance Arbitrary ToolCallId where
   arbitrary = ToolCallId <$> genText
-    where
-      genText = T.pack <$> listOf1 (elements ['a'..'z'])
+   where
+    genText = T.pack <$> listOf1 (elements ['a' .. 'z'])
 
 instance Arbitrary ToolResultContent where
-  arbitrary = frequency
-    [ (3, ToolResultText . T.pack <$> listOf1 (elements ['a'..'z']))
-    , (1, ToolResultBlocks <$> resize 2 arbitrary)
-    ]
+  arbitrary =
+    frequency
+      [ (3, ToolResultText . T.pack <$> listOf1 (elements ['a' .. 'z']))
+      , (1, ToolResultBlocks <$> resize 2 arbitrary)
+      ]
 
 instance Arbitrary ToolUseInput where
   arbitrary = ToolUseInput <$> genObject
-    where
-      genText = T.pack <$> listOf1 (elements ['a'..'z'])
-      genObject = KM.fromList <$> listOf ((,) <$> (fromText <$> genText) <*> (String <$> genText))
+   where
+    genText = T.pack <$> listOf1 (elements ['a' .. 'z'])
+    genObject = KM.fromList <$> listOf ((,) <$> (fromText <$> genText) <*> (String <$> genText))
 
 instance Arbitrary ContentBlock where
-  arbitrary = oneof
-    [ TextBlock <$> genText <*> arbitrary
-    , ImageBlock <$> arbitrary <*> arbitrary
-    , ToolUseBlock <$> arbitrary <*> genText <*> arbitrary <*> arbitrary
-    , ToolResultBlock <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
-    ]
-    where
-      genText = T.pack <$> listOf1 (elements ['a'..'z'])
+  arbitrary =
+    oneof
+      [ TextBlock <$> genText <*> arbitrary
+      , ImageBlock <$> arbitrary <*> arbitrary
+      , ToolUseBlock <$> arbitrary <*> genText <*> arbitrary <*> arbitrary
+      , ToolResultBlock <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+      ]
+   where
+    genText = T.pack <$> listOf1 (elements ['a' .. 'z'])
 
 -- Test Suite
 
 spec :: Spec
 spec = describe "Types.ContentBlock" $ do
-
   describe "CacheControl" $ do
-    it "round-trips through JSON" $ property $
-      \(cc :: CacheControl) -> decode (encode cc) === Just cc
+    it "round-trips through JSON"
+      $ property
+      $ \(cc :: CacheControl) -> decode (encode cc) === Just cc
 
     it "parses cache control with type field" $ do
       let json = "{\"type\":\"ephemeral\"}"
@@ -89,8 +92,9 @@ spec = describe "Types.ContentBlock" $ do
       let json = encode src
       decode json `shouldBe` Just src
 
-    it "round-trips through JSON" $ property $
-      \(src :: ImageSource) -> decode (encode src) === Just src
+    it "round-trips through JSON"
+      $ property
+      $ \(src :: ImageSource) -> decode (encode src) === Just src
 
     it "uses snake_case for media_type field" $ do
       let src = Base64Source "image/jpeg" "data"
@@ -152,8 +156,9 @@ spec = describe "Types.ContentBlock" $ do
         Just (ToolResultBlock _ _ _ _) -> pure ()
         _ -> expectationFailure "Failed to roundtrip ToolResultBlock"
 
-    it "round-trips through JSON" $ property $
-      \(block :: ContentBlock) -> decode (encode block) === Just block
+    it "round-trips through JSON"
+      $ property
+      $ \(block :: ContentBlock) -> decode (encode block) === Just block
 
   describe "Helper Constructors" $ do
     it "textBlock creates TextBlock" $ do
@@ -202,8 +207,9 @@ spec = describe "Types.ContentBlock" $ do
       let json = "[1,2,3]"
       (decode json :: Maybe ToolUseInput) `shouldBe` Nothing
 
-    it "round-trips through JSON" $ property $
-      \(input :: ToolUseInput) -> decode (encode input) === Just input
+    it "round-trips through JSON"
+      $ property
+      $ \(input :: ToolUseInput) -> decode (encode input) === Just input
 
   describe "Cache Control on ContentBlock" $ do
     it "omits cache_control when Nothing" $ do

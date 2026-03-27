@@ -4,9 +4,9 @@
 
 module Anthropic.Claude.Types.RequestSpec (spec) where
 
-import Anthropic.Claude.Types.Request
+import Anthropic.Claude.Types.ContentBlock (CacheControl (..), ContentBlock (..), textBlock)
 import Anthropic.Claude.Types.Core
-import Anthropic.Claude.Types.ContentBlock (ContentBlock(..), CacheControl(..), textBlock)
+import Anthropic.Claude.Types.Request
 import Anthropic.Claude.Types.Schema
 import Data.Aeson (decode, encode)
 import qualified Data.Text as T
@@ -16,61 +16,68 @@ import Test.QuickCheck
 -- Arbitrary Instances
 
 genText :: Gen T.Text
-genText = T.pack <$> listOf1 (elements ['a'..'z'])
+genText = T.pack <$> listOf1 (elements ['a' .. 'z'])
 
 instance Arbitrary MessageContent where
   arbitrary = TextContent <$> genText
 
 instance Arbitrary Message where
-  arbitrary = Message
-    <$> elements [User, Assistant]
-    <*> arbitrary
+  arbitrary =
+    Message
+      <$> elements [User, Assistant]
+      <*> arbitrary
 
 instance Arbitrary SchemaType where
-  arbitrary = elements
-    [StringType, NumberType, IntegerType, BooleanType, NullType]
+  arbitrary =
+    elements
+      [StringType, NumberType, IntegerType, BooleanType, NullType]
 
 instance Arbitrary JsonSchema where
-  arbitrary = oneof
-    [ pure stringSchema
-    , pure numberSchema
-    , pure integerSchema
-    , pure booleanSchema
-    , objectSchema <$> listOf1 genProperty
-    ]
-    where
-      genProperty = do
-        name <- genText
-        isReq <- arbitrary
-        pure $ Property name stringSchema isReq
+  arbitrary =
+    oneof
+      [ pure stringSchema
+      , pure numberSchema
+      , pure integerSchema
+      , pure booleanSchema
+      , objectSchema <$> listOf1 genProperty
+      ]
+   where
+    genProperty = do
+      name <- genText
+      isReq <- arbitrary
+      pure $ Property name stringSchema isReq
 
 instance Arbitrary CacheControl where
   arbitrary = pure $ CacheControl "ephemeral"
 
 instance Arbitrary Tool where
-  arbitrary = Tool
-    <$> genText
-    <*> oneof [Just <$> genText, pure Nothing]
-    <*> arbitrary
-    <*> oneof [Just <$> arbitrary, pure Nothing]
+  arbitrary =
+    Tool
+      <$> genText
+      <*> oneof [Just <$> genText, pure Nothing]
+      <*> arbitrary
+      <*> oneof [Just <$> arbitrary, pure Nothing]
 
 instance Arbitrary ToolChoice where
-  arbitrary = oneof
-    [ pure AutoChoice
-    , pure AnyChoice
-    , ToolChoice <$> genText
-    ]
+  arbitrary =
+    oneof
+      [ pure AutoChoice
+      , pure AnyChoice
+      , ToolChoice <$> genText
+      ]
 
 instance Arbitrary SystemBlock where
-  arbitrary = SystemBlock
-    <$> genText
-    <*> oneof [pure Nothing, Just <$> arbitrary]
+  arbitrary =
+    SystemBlock
+      <$> genText
+      <*> oneof [pure Nothing, Just <$> arbitrary]
 
 instance Arbitrary SystemContent where
-  arbitrary = oneof
-    [ SystemText <$> genText
-    , SystemBlocks <$> listOf1 arbitrary
-    ]
+  arbitrary =
+    oneof
+      [ SystemText <$> genText
+      , SystemBlocks <$> listOf1 arbitrary
+      ]
 
 instance Arbitrary CreateMessageRequest where
   arbitrary = do
@@ -79,13 +86,12 @@ instance Arbitrary CreateMessageRequest where
     maxTok <- choose (1, 4096)
     sys <- oneof [pure Nothing, Just <$> arbitrary]
     let req = mkRequest model msgs maxTok
-    pure $ req { requestSystem = sys }
+    pure $ req {requestSystem = sys}
 
 -- Tests
 
 spec :: Spec
 spec = describe "Types.Request" $ do
-
   describe "MessageContent" $ do
     it "parses text content as TextContent" $ do
       let json = "\"Hello, world!\""
@@ -107,16 +113,19 @@ spec = describe "Types.Request" $ do
         Just (BlocksContent _) -> pure ()
         _ -> expectationFailure "Failed to encode BlocksContent as array"
 
-    it "round-trips through JSON" $ property $
-      \(content :: MessageContent) -> decode (encode content) === Just content
+    it "round-trips through JSON"
+      $ property
+      $ \(content :: MessageContent) -> decode (encode content) === Just content
 
   describe "Message" $ do
-    it "round-trips through JSON" $ property $
-      \(msg :: Message) -> decode (encode msg) === Just msg
+    it "round-trips through JSON"
+      $ property
+      $ \(msg :: Message) -> decode (encode msg) === Just msg
 
   describe "Tool" $ do
-    it "round-trips through JSON" $ property $
-      \(tool :: Tool) -> decode (encode tool) === Just tool
+    it "round-trips through JSON"
+      $ property
+      $ \(tool :: Tool) -> decode (encode tool) === Just tool
 
     it "serializes type as custom" $ do
       let tool = Tool "test" (Just "A test tool") stringSchema Nothing
@@ -146,7 +155,7 @@ spec = describe "Types.Request" $ do
     it "parses tool without type field" $ do
       let json = "{\"name\":\"test\",\"input_schema\":{\"type\":\"string\"}}"
       case decode json :: Maybe Tool of
-        Just t  -> toolName t `shouldBe` "test"
+        Just t -> toolName t `shouldBe` "test"
         Nothing -> expectationFailure "Failed to parse tool without type field"
 
     it "rejects non-custom type" $ do
@@ -154,21 +163,23 @@ spec = describe "Types.Request" $ do
       (decode json :: Maybe Tool) `shouldBe` Nothing
 
   describe "ToolChoice" $ do
-    it "encodes AutoChoice correctly" $
-      encode AutoChoice `shouldBe` "{\"type\":\"auto\"}"
+    it "encodes AutoChoice correctly"
+      $ encode AutoChoice `shouldBe` "{\"type\":\"auto\"}"
 
-    it "encodes AnyChoice correctly" $
-      encode AnyChoice `shouldBe` "{\"type\":\"any\"}"
+    it "encodes AnyChoice correctly"
+      $ encode AnyChoice `shouldBe` "{\"type\":\"any\"}"
 
-    it "encodes ToolChoice correctly" $
-      encode (ToolChoice "my_tool") `shouldBe` "{\"name\":\"my_tool\",\"type\":\"tool\"}"
+    it "encodes ToolChoice correctly"
+      $ encode (ToolChoice "my_tool") `shouldBe` "{\"name\":\"my_tool\",\"type\":\"tool\"}"
 
-    it "round-trips through JSON" $ property $
-      \(tc :: ToolChoice) -> decode (encode tc) === Just tc
+    it "round-trips through JSON"
+      $ property
+      $ \(tc :: ToolChoice) -> decode (encode tc) === Just tc
 
   describe "CreateMessageRequest" $ do
-    it "round-trips through JSON" $ property $
-      \(req :: CreateMessageRequest) -> decode (encode req) === Just req
+    it "round-trips through JSON"
+      $ property
+      $ \(req :: CreateMessageRequest) -> decode (encode req) === Just req
 
     it "validates non-empty messages" $ do
       let json = "{\"model\":\"claude-opus-4-6\",\"messages\":[],\"max_tokens\":100}"
@@ -199,8 +210,9 @@ spec = describe "Types.Request" $ do
       requestMaxTokens req `shouldBe` 1024
 
   describe "SystemContent" $ do
-    it "round-trips through JSON" $ property $
-      \(sc :: SystemContent) -> decode (encode sc) === Just sc
+    it "round-trips through JSON"
+      $ property
+      $ \(sc :: SystemContent) -> decode (encode sc) === Just sc
 
     it "parses plain string as SystemText" $ do
       let json = "\"You are a helpful assistant.\""
@@ -217,8 +229,9 @@ spec = describe "Types.Request" $ do
       encode (SystemText "test") `shouldBe` "\"test\""
 
   describe "SystemBlock" $ do
-    it "round-trips through JSON" $ property $
-      \(sb :: SystemBlock) -> decode (encode sb) === Just sb
+    it "round-trips through JSON"
+      $ property
+      $ \(sb :: SystemBlock) -> decode (encode sb) === Just sb
 
     it "always emits type field in JSON" $ do
       let sb = systemBlock "hello"

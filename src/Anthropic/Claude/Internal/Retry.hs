@@ -33,7 +33,7 @@ module Anthropic.Claude.Internal.Retry
 
 import Anthropic.Claude.Types.Client
 import Anthropic.Claude.Types.Error
-import Anthropic.Claude.Types.Logging (logRetryAttempt, logApiError)
+import Anthropic.Claude.Types.Logging (logApiError, logRetryAttempt)
 import Anthropic.Claude.Types.Observability
 import Control.Concurrent (threadDelay)
 import Data.Time.Clock (NominalDiffTime)
@@ -60,38 +60,40 @@ withRetry
   -> m (Either APIError a)
   -> m (Either APIError a)
 withRetry env action = go 0
-  where
-    policy = clientRetryPolicy env
-    handler = clientEventHandler env
-    logSettings = clientLogSettings env
-    maxAttempts = retryMaxAttempts policy
+ where
+  policy = clientRetryPolicy env
+  handler = clientEventHandler env
+  logSettings = clientLogSettings env
+  maxAttempts = retryMaxAttempts policy
 
-    go attempt
-      | attempt > maxAttempts = action  -- Exceeded max attempts, run once more without retry
-      | otherwise = do
-          result <- action
-          case result of
-            Right success -> pure $ Right success
-            Left err
-              | shouldRetryError err && attempt < maxAttempts -> do
-                  let delay = calculateBackoff policy attempt
-                  liftIO $ do
-                    emitEvent handler $ Retry RetryEvent
-                      { retryEvtError       = err
-                      , retryEvtAttempt     = attempt + 1
-                      , retryEvtMaxAttempts = maxAttempts
-                      , retryEvtBackoff     = delay
-                      }
-                    logRetryAttempt logSettings err (attempt + 1) maxAttempts delay
-                    threadDelay (microSeconds delay)
-                  go (attempt + 1)
-              | otherwise -> do
-                  liftIO $ logApiError logSettings err
-                  pure $ Left err
+  go attempt
+    | attempt > maxAttempts = action -- Exceeded max attempts, run once more without retry
+    | otherwise = do
+        result <- action
+        case result of
+          Right success -> pure $ Right success
+          Left err
+            | shouldRetryError err && attempt < maxAttempts -> do
+                let delay = calculateBackoff policy attempt
+                liftIO $ do
+                  emitEvent handler
+                    $ Retry
+                      RetryEvent
+                        { retryEvtError = err
+                        , retryEvtAttempt = attempt + 1
+                        , retryEvtMaxAttempts = maxAttempts
+                        , retryEvtBackoff = delay
+                        }
+                  logRetryAttempt logSettings err (attempt + 1) maxAttempts delay
+                  threadDelay (microSeconds delay)
+                go (attempt + 1)
+            | otherwise -> do
+                liftIO $ logApiError logSettings err
+                pure $ Left err
 
-    -- Convert NominalDiffTime to microseconds for threadDelay
-    microSeconds :: NominalDiffTime -> Int
-    microSeconds dt = round (dt * 1000000)
+  -- Convert NominalDiffTime to microseconds for threadDelay
+  microSeconds :: NominalDiffTime -> Int
+  microSeconds dt = round (dt * 1000000)
 
 -- | Check if an error should trigger a retry
 --
@@ -141,5 +143,5 @@ withRetryPolicy
   -> ClientEnv
   -> m (Either APIError a)
 withRetryPolicy policy action env =
-  let env' = env { clientRetryPolicy = policy }
-  in action env'
+  let env' = env {clientRetryPolicy = policy}
+   in action env'

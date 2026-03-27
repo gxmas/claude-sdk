@@ -11,7 +11,6 @@ import Test.Hspec
 
 spec :: Spec
 spec = describe "Batch" $ do
-
   describe "createBatch (parseResponse)" $ do
     it "parses successful 200 batch response" $ do
       let resp = mockSuccess sampleBatchResponseJson

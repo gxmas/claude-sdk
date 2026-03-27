@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 {- |
@@ -14,13 +13,13 @@ Tool definitions, and helper constructors for building requests.
 -}
 module Anthropic.Claude.Types.Request
   ( -- * Request Types
-    CreateMessageRequest(..)
-  , Message(..)
-  , MessageContent(..)
-  , Tool(..)
-  , ToolChoice(..)
-  , SystemContent(..)
-  , SystemBlock(..)
+    CreateMessageRequest (..)
+  , Message (..)
+  , MessageContent (..)
+  , Tool (..)
+  , ToolChoice (..)
+  , SystemContent (..)
+  , SystemBlock (..)
 
     -- * Helper Constructors
   , userMsg
@@ -64,7 +63,8 @@ instance ToJSON MessageContent where
 data Message = Message
   { messageRole :: Role
   , messageContent :: MessageContent
-  } deriving (Eq, Show, Generic)
+  }
+  deriving (Eq, Show, Generic)
 
 instance FromJSON Message where
   parseJSON = genericParseJSON (prefixOptions "message")
@@ -78,11 +78,12 @@ instance ToJSON Message where
 -- Per the official Anthropic schema, tools always have @type: "custom"@,
 -- an optional description, a required input_schema, and optional cache_control.
 data Tool = Tool
-  { toolName         :: Text
-  , toolDescription  :: Maybe Text
-  , toolInputSchema  :: JsonSchema
+  { toolName :: Text
+  , toolDescription :: Maybe Text
+  , toolInputSchema :: JsonSchema
   , toolCacheControl :: Maybe CacheControl
-  } deriving (Eq, Show)
+  }
+  deriving (Eq, Show)
 
 instance FromJSON Tool where
   parseJSON = withObject "Tool" $ \o -> do
@@ -91,25 +92,30 @@ instance FromJSON Tool where
       Just t | t /= "custom" -> fail $ "Expected tool type \"custom\", got: " <> T.unpack t
       _ -> pure ()
     Tool
-      <$> o .:  "name"
+      <$> o .: "name"
       <*> o .:? "description"
-      <*> o .:  "input_schema"
+      <*> o .: "input_schema"
       <*> o .:? "cache_control"
 
 instance ToJSON Tool where
-  toJSON (Tool name desc schema cc) = object $ catMaybes
-    [ Just ("type"         .= ("custom" :: Text))
-    , Just ("name"         .= name)
-    , ("description"   .=) <$> desc
-    , Just ("input_schema" .= schema)
-    , ("cache_control" .=) <$> cc
-    ]
+  toJSON (Tool name desc schema cc) =
+    object
+      $ catMaybes
+        [ Just ("type" .= ("custom" :: Text))
+        , Just ("name" .= name)
+        , ("description" .=) <$> desc
+        , Just ("input_schema" .= schema)
+        , ("cache_control" .=) <$> cc
+        ]
 
 -- | Tool choice strategy
 data ToolChoice
-  = AutoChoice         -- ^ Let Claude decide whether to use tools
-  | AnyChoice          -- ^ Claude must use a tool
-  | ToolChoice Text    -- ^ Claude must use the specified tool
+  = -- | Let Claude decide whether to use tools
+    AutoChoice
+  | -- | Claude must use a tool
+    AnyChoice
+  | -- | Claude must use the specified tool
+    ToolChoice Text
   deriving (Eq, Show, Generic)
 
 instance FromJSON ToolChoice where
@@ -122,16 +128,18 @@ instance FromJSON ToolChoice where
 instance ToJSON ToolChoice where
   toJSON AutoChoice = object ["type" .= ("auto" :: Text)]
   toJSON AnyChoice = object ["type" .= ("any" :: Text)]
-  toJSON (ToolChoice name) = object
-    [ "type" .= ("tool" :: Text)
-    , "name" .= name
-    ]
+  toJSON (ToolChoice name) =
+    object
+      [ "type" .= ("tool" :: Text)
+      , "name" .= name
+      ]
 
 -- | A system prompt block with optional cache control
 data SystemBlock = SystemBlock
   { systemBlockText :: Text
   , systemBlockCacheControl :: Maybe CacheControl
-  } deriving (Eq, Show, Generic)
+  }
+  deriving (Eq, Show, Generic)
 
 instance FromJSON SystemBlock where
   parseJSON = withObject "SystemBlock" $ \o ->
@@ -140,24 +148,29 @@ instance FromJSON SystemBlock where
       <*> o .:? "cache_control"
 
 instance ToJSON SystemBlock where
-  toJSON (SystemBlock txt cc) = object $ catMaybes
-    [ Just ("type" .= ("text" :: Text))
-    , Just ("text" .= txt)
-    , ("cache_control" .=) <$> cc
-    ]
+  toJSON (SystemBlock txt cc) =
+    object
+      $ catMaybes
+        [ Just ("type" .= ("text" :: Text))
+        , Just ("text" .= txt)
+        , ("cache_control" .=) <$> cc
+        ]
 
 -- | System prompt content (either a plain string or a list of blocks)
 --
 -- Use 'SystemText' for simple system prompts, or 'SystemBlocks' when
 -- you need cache control on individual blocks.
 data SystemContent
-  = SystemText Text            -- ^ @"system": "string"@
-  | SystemBlocks [SystemBlock] -- ^ @"system": [{"type":"text","text":"...","cache_control":...}]@
+  = -- | @"system": "string"@
+    SystemText Text
+  | -- | @"system": [{"type":"text","text":"...","cache_control":...}]@
+    SystemBlocks [SystemBlock]
   deriving (Eq, Show, Generic)
 
 instance FromJSON SystemContent where
-  parseJSON v = (SystemText <$> parseJSON v)
-            <|> (SystemBlocks <$> parseJSON v)
+  parseJSON v =
+    (SystemText <$> parseJSON v)
+      <|> (SystemBlocks <$> parseJSON v)
 
 instance ToJSON SystemContent where
   toJSON (SystemText t) = toJSON t
@@ -171,19 +184,32 @@ instance ToJSON SystemContent where
 --
 -- Use 'mkRequest' for a simple request, or construct directly for full control.
 data CreateMessageRequest = CreateMessageRequest
-  { requestModel :: ModelId            -- ^ Model identifier (e.g., @claude4Sonnet@)
-  , requestMessages :: [Message]       -- ^ Conversation history (must be non-empty)
-  , requestMaxTokens :: Int            -- ^ Maximum tokens to generate (must be positive)
-  , requestMetadata :: Maybe Value     -- ^ User-defined metadata (opaque to the API)
-  , requestStopSequences :: Maybe [Text] -- ^ Custom stop sequences
-  , requestStream :: Maybe Bool        -- ^ Enable server-sent events streaming
-  , requestSystem :: Maybe SystemContent -- ^ System prompt (instructions for Claude)
-  , requestTemperature :: Maybe Double -- ^ Sampling temperature (0.0-1.0, default 1.0)
-  , requestToolChoice :: Maybe ToolChoice -- ^ Tool selection strategy
-  , requestTools :: Maybe [Tool]       -- ^ Available tools for Claude to use
-  , requestTopK :: Maybe Int           -- ^ Top-k sampling parameter
-  , requestTopP :: Maybe Double        -- ^ Nucleus sampling parameter (0.0-1.0)
-  } deriving (Eq, Show, Generic)
+  { requestModel :: ModelId
+  -- ^ Model identifier (e.g., @claude4Sonnet@)
+  , requestMessages :: [Message]
+  -- ^ Conversation history (must be non-empty)
+  , requestMaxTokens :: Int
+  -- ^ Maximum tokens to generate (must be positive)
+  , requestMetadata :: Maybe Value
+  -- ^ User-defined metadata (opaque to the API)
+  , requestStopSequences :: Maybe [Text]
+  -- ^ Custom stop sequences
+  , requestStream :: Maybe Bool
+  -- ^ Enable server-sent events streaming
+  , requestSystem :: Maybe SystemContent
+  -- ^ System prompt (instructions for Claude)
+  , requestTemperature :: Maybe Double
+  -- ^ Sampling temperature (0.0-1.0, default 1.0)
+  , requestToolChoice :: Maybe ToolChoice
+  -- ^ Tool selection strategy
+  , requestTools :: Maybe [Tool]
+  -- ^ Available tools for Claude to use
+  , requestTopK :: Maybe Int
+  -- ^ Top-k sampling parameter
+  , requestTopP :: Maybe Double
+  -- ^ Nucleus sampling parameter (0.0-1.0)
+  }
+  deriving (Eq, Show, Generic)
 
 instance FromJSON CreateMessageRequest where
   parseJSON = withObject "CreateMessageRequest" $ \obj -> do
@@ -203,29 +229,43 @@ instance FromJSON CreateMessageRequest where
     -- Validation
     if null messages
       then fail "messages must not be empty"
-      else if maxTokens <= 0
-        then fail "max_tokens must be positive"
-        else pure $ CreateMessageRequest
-          model messages maxTokens metadata stopSeqs stream system
-          temperature toolChoice tools topK topP
+      else
+        if maxTokens <= 0
+          then fail "max_tokens must be positive"
+          else
+            pure
+              $ CreateMessageRequest
+                model
+                messages
+                maxTokens
+                metadata
+                stopSeqs
+                stream
+                system
+                temperature
+                toolChoice
+                tools
+                topK
+                topP
 
 instance ToJSON CreateMessageRequest where
   toJSON (CreateMessageRequest model messages maxTokens metadata stopSeqs stream system temp toolChoice tools topK topP) =
-    object $
-      [ "model" .= model
-      , "messages" .= messages
-      , "max_tokens" .= maxTokens
-      ] ++ catMaybes
-      [ ("metadata" .=) <$> metadata
-      , ("stop_sequences" .=) <$> stopSeqs
-      , ("stream" .=) <$> stream
-      , ("system" .=) <$> system
-      , ("temperature" .=) <$> temp
-      , ("tool_choice" .=) <$> toolChoice
-      , ("tools" .=) <$> tools
-      , ("top_k" .=) <$> topK
-      , ("top_p" .=) <$> topP
-      ]
+    object
+      $ [ "model" .= model
+        , "messages" .= messages
+        , "max_tokens" .= maxTokens
+        ]
+        ++ catMaybes
+          [ ("metadata" .=) <$> metadata
+          , ("stop_sequences" .=) <$> stopSeqs
+          , ("stream" .=) <$> stream
+          , ("system" .=) <$> system
+          , ("temperature" .=) <$> temp
+          , ("tool_choice" .=) <$> toolChoice
+          , ("tools" .=) <$> tools
+          , ("top_k" .=) <$> topK
+          , ("top_p" .=) <$> topP
+          ]
 
 -- | Helper: Create a user message with text content
 userMsg :: Text -> Message
@@ -246,20 +286,21 @@ assistantMsgBlocks blocks = Message Assistant (BlocksContent blocks)
 -- let req = mkRequest claude4Sonnet [userMsg "Hello"] 1024
 -- @
 mkRequest :: ModelId -> [Message] -> Int -> CreateMessageRequest
-mkRequest model messages maxTokens = CreateMessageRequest
-  { requestModel = model
-  , requestMessages = messages
-  , requestMaxTokens = maxTokens
-  , requestMetadata = Nothing
-  , requestStopSequences = Nothing
-  , requestStream = Nothing
-  , requestSystem = Nothing
-  , requestTemperature = Nothing
-  , requestToolChoice = Nothing
-  , requestTools = Nothing
-  , requestTopK = Nothing
-  , requestTopP = Nothing
-  }
+mkRequest model messages maxTokens =
+  CreateMessageRequest
+    { requestModel = model
+    , requestMessages = messages
+    , requestMaxTokens = maxTokens
+    , requestMetadata = Nothing
+    , requestStopSequences = Nothing
+    , requestStream = Nothing
+    , requestSystem = Nothing
+    , requestTemperature = Nothing
+    , requestToolChoice = Nothing
+    , requestTools = Nothing
+    , requestTopK = Nothing
+    , requestTopP = Nothing
+    }
 
 -- | Smart constructor for a system block without cache control
 systemBlock :: Text -> SystemBlock

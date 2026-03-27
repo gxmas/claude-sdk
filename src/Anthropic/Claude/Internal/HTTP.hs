@@ -29,18 +29,18 @@ module Anthropic.Claude.Internal.HTTP
 import Anthropic.Claude.Types.Client
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
-import Network.HTTP.Client (Manager, Request, RequestBody(..), Response, httpLbs, newManager, parseRequest)
+import Network.HTTP.Client (Manager, Request, RequestBody (..), Response, httpLbs, newManager, parseRequest)
 import qualified Network.HTTP.Client as HTTP
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Network.HTTP.Types.Header (Header, HeaderName)
 import Network.HTTP.Types.Method (Method)
-import Network.HTTP.Types.Status (Status(..))
-import qualified Data.Aeson as Aeson
+import Network.HTTP.Types.Status (Status (..))
 
 -- API constants
 apiBaseUrl :: String
@@ -63,7 +63,20 @@ userAgent = "claude-sdk-haskell/0.1.0.0"
 mkClientEnv :: ApiKey -> IO ClientEnv
 mkClientEnv apiKey = do
   manager <- newManager tlsManagerSettings
-  pure ClientEnv
+  pure
+    ClientEnv
+      { clientApiKey = apiKey
+      , clientRetryPolicy = defaultRetryPolicy
+      , clientBaseUrl = apiBaseUrl
+      , clientManager = manager
+      , clientEventHandler = Nothing
+      , clientLogSettings = Nothing
+      }
+
+-- | Default client environment (for testing)
+defaultClientEnv :: ApiKey -> Manager -> ClientEnv
+defaultClientEnv apiKey manager =
+  ClientEnv
     { clientApiKey = apiKey
     , clientRetryPolicy = defaultRetryPolicy
     , clientBaseUrl = apiBaseUrl
@@ -71,17 +84,6 @@ mkClientEnv apiKey = do
     , clientEventHandler = Nothing
     , clientLogSettings = Nothing
     }
-
--- | Default client environment (for testing)
-defaultClientEnv :: ApiKey -> Manager -> ClientEnv
-defaultClientEnv apiKey manager = ClientEnv
-  { clientApiKey = apiKey
-  , clientRetryPolicy = defaultRetryPolicy
-  , clientBaseUrl = apiBaseUrl
-  , clientManager = manager
-  , clientEventHandler = Nothing
-  , clientLogSettings = Nothing
-  }
 
 -- | Build an HTTP request with proper headers
 --
@@ -93,21 +95,23 @@ defaultClientEnv apiKey manager = ClientEnv
 buildRequest
   :: ClientEnv
   -> Method
-  -> String        -- ^ Path (e.g., "/v1/messages")
+  -> String
+  -- ^ Path (e.g., "/v1/messages")
   -> RequestBody
   -> IO Request
-buildRequest ClientEnv{..} httpMethod path body = do
+buildRequest ClientEnv {..} httpMethod path body = do
   baseReq <- parseRequest $ clientBaseUrl <> path
-  pure baseReq
-    { HTTP.method = httpMethod
-    , HTTP.requestHeaders =
-        [ ("x-api-key", TE.encodeUtf8 $ unApiKey clientApiKey)
-        , ("anthropic-version", apiVersion)
-        , ("content-type", "application/json")
-        , ("user-agent", userAgent)
-        ]
-    , HTTP.requestBody = body
-    }
+  pure
+    baseReq
+      { HTTP.method = httpMethod
+      , HTTP.requestHeaders =
+          [ ("x-api-key", TE.encodeUtf8 $ unApiKey clientApiKey)
+          , ("anthropic-version", apiVersion)
+          , ("content-type", "application/json")
+          , ("user-agent", userAgent)
+          ]
+      , HTTP.requestBody = body
+      }
 
 -- | Execute an HTTP request and return the response
 executeRequest :: Manager -> Request -> IO (Response LBS.ByteString)
@@ -124,25 +128,31 @@ parseResponse
 parseResponse response _reqId =
   let status = HTTP.responseStatus response
       bodyLBS = HTTP.responseBody response
-  in if statusCode status == 200
-       then case Aeson.eitherDecode bodyLBS of
-         Left err -> Left $ APIError
-           { errorKind = InvalidRequestError
-           , errorDetails = ErrorDetails "parse_error" (T.pack err)
-           , errorStatusCode = 200
-           }
-         Right parsed -> Right parsed
-       else case Aeson.eitherDecode bodyLBS of
-         Left _ -> Left $ APIError
-           { errorKind = errorKindFromStatus status
-           , errorDetails = ErrorDetails "unknown_error" "Failed to parse error response"
-           , errorStatusCode = statusCode status
-           }
-         Right details -> Left $ APIError
-           { errorKind = errorKindFromStatus status
-           , errorDetails = details
-           , errorStatusCode = statusCode status
-           }
+   in if statusCode status == 200
+        then case Aeson.eitherDecode bodyLBS of
+          Left err ->
+            Left
+              $ APIError
+                { errorKind = InvalidRequestError
+                , errorDetails = ErrorDetails "parse_error" (T.pack err)
+                , errorStatusCode = 200
+                }
+          Right parsed -> Right parsed
+        else case Aeson.eitherDecode bodyLBS of
+          Left _ ->
+            Left
+              $ APIError
+                { errorKind = errorKindFromStatus status
+                , errorDetails = ErrorDetails "unknown_error" "Failed to parse error response"
+                , errorStatusCode = statusCode status
+                }
+          Right details ->
+            Left
+              $ APIError
+                { errorKind = errorKindFromStatus status
+                , errorDetails = details
+                , errorStatusCode = statusCode status
+                }
 
 -- | Extract rate limit information from response headers
 --
@@ -161,16 +171,18 @@ extractRateLimitInfo headers =
       rateLimitTokensRemaining = lookupInt "anthropic-ratelimit-tokens-remaining" headers
       rateLimitResetRequests = lookupInt "anthropic-ratelimit-requests-reset" headers
       rateLimitResetTokens = lookupInt "anthropic-ratelimit-tokens-reset" headers
-  in if all (== Nothing) [rateLimitRequests, rateLimitTokens, rateLimitRemaining, rateLimitTokensRemaining, rateLimitResetRequests, rateLimitResetTokens]
-       then Nothing
-       else Just RateLimitInfo
-         { rateLimitRequests = rateLimitRequests
-         , rateLimitTokens = rateLimitTokens
-         , rateLimitRemaining = rateLimitRemaining
-         , rateLimitTokensRemaining = rateLimitTokensRemaining
-         , rateLimitResetRequests = rateLimitResetRequests
-         , rateLimitResetTokens = rateLimitResetTokens
-         }
+   in if all (== Nothing) [rateLimitRequests, rateLimitTokens, rateLimitRemaining, rateLimitTokensRemaining, rateLimitResetRequests, rateLimitResetTokens]
+        then Nothing
+        else
+          Just
+            RateLimitInfo
+              { rateLimitRequests = rateLimitRequests
+              , rateLimitTokens = rateLimitTokens
+              , rateLimitRemaining = rateLimitRemaining
+              , rateLimitTokensRemaining = rateLimitTokensRemaining
+              , rateLimitResetRequests = rateLimitResetRequests
+              , rateLimitResetTokens = rateLimitResetTokens
+              }
 
 -- | Look up a header value and parse it as an Int.
 --

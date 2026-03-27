@@ -5,7 +5,7 @@
 module Anthropic.Claude.Types.SchemaSpec (spec) where
 
 import Anthropic.Claude.Types.Schema
-import Data.Aeson (Value(..), decode, encode)
+import Data.Aeson (Value (..), decode, encode)
 import qualified Data.Map.Strict as Map
 import Data.Scientific (Scientific)
 import qualified Data.Text as T
@@ -15,23 +15,31 @@ import Test.QuickCheck
 -- Arbitrary Instances
 
 instance Arbitrary SchemaType where
-  arbitrary = elements
-    [StringType, NumberType, IntegerType, BooleanType, ArrayType, ObjectType, NullType]
+  arbitrary =
+    elements
+      [StringType, NumberType, IntegerType, BooleanType, ArrayType, ObjectType, NullType]
 
 instance Arbitrary TypeSpec where
-  arbitrary = oneof
-    [ SingleType <$> arbitrary
-    , UnionType <$> listOf1 arbitrary
-    ]
+  arbitrary =
+    oneof
+      [ SingleType <$> arbitrary
+      , UnionType <$> listOf1 arbitrary
+      ]
 
 instance Arbitrary JsonSchema where
   arbitrary = sized genSchema
-    where
-      genSchema 0 = elements
-        [ stringSchema, numberSchema, integerSchema, booleanSchema, nullSchema
+   where
+    genSchema 0 =
+      elements
+        [ stringSchema
+        , numberSchema
+        , integerSchema
+        , booleanSchema
+        , nullSchema
         , emptySchema
         ]
-      genSchema n = frequency
+    genSchema n =
+      frequency
         -- Weight base cases heavily to keep trees small
         [ (5, pure stringSchema)
         , (5, pure numberSchema)
@@ -46,24 +54,30 @@ instance Arbitrary JsonSchema where
         , (1, allOfSchema <$> smallListOf1 (genSchema half))
         , (1, notSchema <$> genSchema half)
         , (2, refSchema <$> genText)
-        , (2, do desc <- genText
-                 s <- genSchema half
-                 pure $ withDescription desc s)
+        ,
+          ( 2
+          , do
+              desc <- genText
+              s <- genSchema half
+              pure $ withDescription desc s
+          )
         ]
-        where half = n `div` 3
+     where
+      half = n `div` 3
 
-      -- Generate 1-3 elements (bounded, unlike listOf1 which is unbounded)
-      smallListOf1 gen = do
-        n <- choose (1, 3 :: Int)
-        vectorOf n gen
+    -- Generate 1-3 elements (bounded, unlike listOf1 which is unbounded)
+    smallListOf1 gen = do
+      n <- choose (1, 3 :: Int)
+      vectorOf n gen
 
-      genProperty n = do
-        name <- genText
-        schema <- genSchema n
-        isReq <- arbitrary
-        pure $ Property name schema isReq
+    genProperty n = do
+      name <- genText
+      schema <- genSchema n
+      isReq <- arbitrary
+      pure $ Property name schema isReq
 
-      genSimpleValue = oneof
+    genSimpleValue =
+      oneof
         [ String <$> genText
         , Number <$> genScientific
         , Bool <$> arbitrary
@@ -71,7 +85,7 @@ instance Arbitrary JsonSchema where
         ]
 
 genText :: Gen T.Text
-genText = T.pack <$> listOf1 (elements ['a'..'z'])
+genText = T.pack <$> listOf1 (elements ['a' .. 'z'])
 
 genScientific :: Gen Scientific
 genScientific = fromIntegral <$> (choose (-1000, 1000) :: Gen Int)
@@ -80,23 +94,24 @@ genScientific = fromIntegral <$> (choose (-1000, 1000) :: Gen Int)
 
 spec :: Spec
 spec = describe "Types.Schema" $ do
-
   describe "SchemaType" $ do
-    it "round-trips through JSON" $ property $
-      \(st :: SchemaType) -> decode (encode st) === Just st
+    it "round-trips through JSON"
+      $ property
+      $ \(st :: SchemaType) -> decode (encode st) === Just st
 
     it "encodes to expected strings" $ do
-      encode StringType  `shouldBe` "\"string\""
-      encode NumberType  `shouldBe` "\"number\""
+      encode StringType `shouldBe` "\"string\""
+      encode NumberType `shouldBe` "\"number\""
       encode IntegerType `shouldBe` "\"integer\""
       encode BooleanType `shouldBe` "\"boolean\""
-      encode ArrayType   `shouldBe` "\"array\""
-      encode ObjectType  `shouldBe` "\"object\""
-      encode NullType    `shouldBe` "\"null\""
+      encode ArrayType `shouldBe` "\"array\""
+      encode ObjectType `shouldBe` "\"object\""
+      encode NullType `shouldBe` "\"null\""
 
   describe "TypeSpec" $ do
-    it "round-trips through JSON" $ property $
-      \(ts :: TypeSpec) -> decode (encode ts) === Just ts
+    it "round-trips through JSON"
+      $ property
+      $ \(ts :: TypeSpec) -> decode (encode ts) === Just ts
 
     it "encodes SingleType as string" $ do
       encode (SingleType StringType) `shouldBe` "\"string\""
@@ -111,73 +126,80 @@ spec = describe "Types.Schema" $ do
       decode "[\"string\",\"null\"]" `shouldBe` Just (UnionType [StringType, NullType])
 
   describe "JsonSchema" $ do
-    it "round-trips through JSON" $ property $
-      \(s :: JsonSchema) -> decode (encode s) === Just s
+    it "round-trips through JSON"
+      $ property
+      $ \(s :: JsonSchema) -> decode (encode s) === Just s
 
     it "encodes emptySchema as empty object" $ do
       encode emptySchema `shouldBe` "{}"
 
     it "round-trips all 32 fields" $ do
-      let fullSchema = JsonSchema
-            { schemaType = Just (SingleType ObjectType)
-            , schemaTitle = Just "Test"
-            , schemaDescription = Just "A test schema"
-            , schemaDefault = Just (String "default")
-            , schemaExamples = Just [String "ex1", Number 42]
-            , schemaDeprecated = Just True
-            , schemaReadOnly = Just False
-            , schemaWriteOnly = Just True
-            , schemaEnum = Just [String "a", String "b"]
-            , schemaConst = Just (String "fixed")
-            , schemaProperties = Just $ Map.fromList
-                [("name", stringSchema)]
-            , schemaRequired = Just ["name"]
-            , schemaAdditionalProperties = Just (Bool False)
-            , schemaItems = Just stringSchema
-            , schemaMinItems = Just 1
-            , schemaMaxItems = Just 10
-            , schemaUniqueItems = Just True
-            , schemaMinimum = Just 0
-            , schemaMaximum = Just 100
-            , schemaExclusiveMinimum = Just (-1)
-            , schemaExclusiveMaximum = Just 101
-            , schemaMultipleOf = Just 5
-            , schemaMinLength = Just 1
-            , schemaMaxLength = Just 255
-            , schemaPattern = Just "^[a-z]+$"
-            , schemaFormat = Just "email"
-            , schemaOneOf = Just [stringSchema, numberSchema]
-            , schemaAnyOf = Just [integerSchema]
-            , schemaAllOf = Just [booleanSchema]
-            , schemaNot = Just nullSchema
-            , schemaRef = Just "#/$defs/Address"
-            , schemaDefs = Just $ Map.fromList
-                [("Address", objectSchema [required "street" stringSchema])]
-            }
+      let fullSchema =
+            JsonSchema
+              { schemaType = Just (SingleType ObjectType)
+              , schemaTitle = Just "Test"
+              , schemaDescription = Just "A test schema"
+              , schemaDefault = Just (String "default")
+              , schemaExamples = Just [String "ex1", Number 42]
+              , schemaDeprecated = Just True
+              , schemaReadOnly = Just False
+              , schemaWriteOnly = Just True
+              , schemaEnum = Just [String "a", String "b"]
+              , schemaConst = Just (String "fixed")
+              , schemaProperties =
+                  Just
+                    $ Map.fromList
+                      [("name", stringSchema)]
+              , schemaRequired = Just ["name"]
+              , schemaAdditionalProperties = Just (Bool False)
+              , schemaItems = Just stringSchema
+              , schemaMinItems = Just 1
+              , schemaMaxItems = Just 10
+              , schemaUniqueItems = Just True
+              , schemaMinimum = Just 0
+              , schemaMaximum = Just 100
+              , schemaExclusiveMinimum = Just (-1)
+              , schemaExclusiveMaximum = Just 101
+              , schemaMultipleOf = Just 5
+              , schemaMinLength = Just 1
+              , schemaMaxLength = Just 255
+              , schemaPattern = Just "^[a-z]+$"
+              , schemaFormat = Just "email"
+              , schemaOneOf = Just [stringSchema, numberSchema]
+              , schemaAnyOf = Just [integerSchema]
+              , schemaAllOf = Just [booleanSchema]
+              , schemaNot = Just nullSchema
+              , schemaRef = Just "#/$defs/Address"
+              , schemaDefs =
+                  Just
+                    $ Map.fromList
+                      [("Address", objectSchema [required "street" stringSchema])]
+              }
       decode (encode fullSchema) `shouldBe` Just fullSchema
 
   describe "Primitive schemas" $ do
-    it "stringSchema has type string" $
-      schemaType stringSchema `shouldBe` Just (SingleType StringType)
+    it "stringSchema has type string"
+      $ schemaType stringSchema `shouldBe` Just (SingleType StringType)
 
-    it "numberSchema has type number" $
-      schemaType numberSchema `shouldBe` Just (SingleType NumberType)
+    it "numberSchema has type number"
+      $ schemaType numberSchema `shouldBe` Just (SingleType NumberType)
 
-    it "integerSchema has type integer" $
-      schemaType integerSchema `shouldBe` Just (SingleType IntegerType)
+    it "integerSchema has type integer"
+      $ schemaType integerSchema `shouldBe` Just (SingleType IntegerType)
 
-    it "booleanSchema has type boolean" $
-      schemaType booleanSchema `shouldBe` Just (SingleType BooleanType)
+    it "booleanSchema has type boolean"
+      $ schemaType booleanSchema `shouldBe` Just (SingleType BooleanType)
 
-    it "nullSchema has type null" $
-      schemaType nullSchema `shouldBe` Just (SingleType NullType)
+    it "nullSchema has type null"
+      $ schemaType nullSchema `shouldBe` Just (SingleType NullType)
 
   describe "objectSchema" $ do
     it "creates object with properties and required" $ do
-      let s = objectSchema
-            [ required "name" stringSchema
-            , optional "age" integerSchema
-            ]
+      let s =
+            objectSchema
+              [ required "name" stringSchema
+              , optional "age" integerSchema
+              ]
       schemaType s `shouldBe` Just (SingleType ObjectType)
       schemaRequired s `shouldBe` Just ["name"]
       Map.size <$> schemaProperties s `shouldBe` Just 2
@@ -198,8 +220,11 @@ spec = describe "Types.Schema" $ do
       schemaType s `shouldBe` Just (UnionType [StringType, NullType])
 
     it "appends null to existing UnionType" $ do
-      let s = nullableSchema $ emptySchema
-            { schemaType = Just (UnionType [StringType, IntegerType]) }
+      let s =
+            nullableSchema
+              $ emptySchema
+                { schemaType = Just (UnionType [StringType, IntegerType])
+                }
       schemaType s `shouldBe` Just (UnionType [StringType, IntegerType, NullType])
 
   describe "Composition combinators" $ do

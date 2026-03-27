@@ -3,15 +3,14 @@
 module Anthropic.Claude.Internal.HTTPSpec (spec) where
 
 import Anthropic.Claude.Internal.HTTP
-import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Client
+import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Error
 import Network.HTTP.Types.Status (mkStatus)
 import Test.Hspec
 
 spec :: Spec
 spec = describe "Internal.HTTP" $ do
-
   describe "mkClientEnv" $ do
     it "creates a client environment with TLS manager" $ do
       env <- mkClientEnv (ApiKey "test-key")
@@ -19,8 +18,8 @@ spec = describe "Internal.HTTP" $ do
       clientBaseUrl env `shouldBe` "https://api.anthropic.com"
 
   describe "extractRateLimitInfo" $ do
-    it "returns Nothing for empty headers" $
-      extractRateLimitInfo [] `shouldBe` Nothing
+    it "returns Nothing for empty headers"
+      $ extractRateLimitInfo [] `shouldBe` Nothing
 
     it "extracts rate limit info from headers" $ do
       let headers =

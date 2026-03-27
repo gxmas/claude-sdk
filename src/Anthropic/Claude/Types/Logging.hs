@@ -19,11 +19,11 @@ messages are formatted or emitted.
 -}
 module Anthropic.Claude.Types.Logging
   ( -- * Log Levels
-    LogLevel(..)
+    LogLevel (..)
 
     -- * Logger
   , Logger
-  , LogSettings(..)
+  , LogSettings (..)
   , defaultLogSettings
 
     -- * Pre-built Loggers
@@ -44,9 +44,9 @@ module Anthropic.Claude.Types.Logging
   , showLevel
   ) where
 
-import Anthropic.Claude.Types.RateLimitInfo (RateLimitInfo(..))
-import Anthropic.Claude.Types.Core (RequestId(..))
-import Anthropic.Claude.Types.Error (APIError(..), ErrorDetails(..), isRetryable)
+import Anthropic.Claude.Types.Core (RequestId (..))
+import Anthropic.Claude.Types.Error (APIError (..), ErrorDetails (..), isRetryable)
+import Anthropic.Claude.Types.RateLimitInfo (RateLimitInfo (..))
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import Data.Text (Text)
@@ -54,7 +54,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text.IO as TIO
 import Data.Time.Clock (NominalDiffTime, UTCTime, getCurrentTime)
-import Data.Time.Format (formatTime, defaultTimeLocale)
+import Data.Time.Format (defaultTimeLocale, formatTime)
 import System.IO (stderr)
 
 -- | Log levels in increasing severity.
@@ -72,8 +72,9 @@ type Logger = LogLevel -> Text -> IO ()
 
 -- | Logging configuration stored in the client environment.
 data LogSettings = LogSettings
-  { logLogger    :: Logger
-  , logBodyLimit :: Int      -- ^ Max bytes of request/response body in debug output
+  { logLogger :: Logger
+  , logBodyLimit :: Int
+  -- ^ Max bytes of request/response body in debug output
   }
 
 -- | Default log settings: 4096-byte body limit.
@@ -83,8 +84,8 @@ defaultLogSettings l = LogSettings l 4096
 -- | Display name for a log level, padded to 5 chars.
 showLevel :: LogLevel -> Text
 showLevel LevelDebug = "DEBUG"
-showLevel LevelInfo  = "INFO "
-showLevel LevelWarn  = "WARN "
+showLevel LevelInfo = "INFO "
+showLevel LevelWarn = "WARN "
 showLevel LevelError = "ERROR"
 
 -- ---------------------------------------------------------------------------
@@ -104,8 +105,8 @@ stderrLogger :: LogLevel -> Logger
 stderrLogger minLevel lvl msg
   | lvl >= minLevel = do
       now <- getCurrentTime
-      TIO.hPutStrLn stderr $
-        "[" <> formatTimestamp now <> "] [" <> showLevel lvl <> "] " <> msg
+      TIO.hPutStrLn stderr
+        $ "[" <> formatTimestamp now <> "] [" <> showLevel lvl <> "] " <> msg
   | otherwise = pure ()
 
 -- | Convenience logger: logs everything to stderr.
@@ -118,7 +119,7 @@ debugLogger = stderrLogger LevelDebug
 
 -- | Emit a log message if a logger is configured. No-op when 'Nothing'.
 logMsg :: Maybe LogSettings -> LogLevel -> Text -> IO ()
-logMsg Nothing  _   _   = pure ()
+logMsg Nothing _ _ = pure ()
 logMsg (Just s) lvl msg = logLogger s lvl msg
 
 -- ---------------------------------------------------------------------------
@@ -129,22 +130,32 @@ logMsg (Just s) lvl msg = logLogger s lvl msg
 logHttpRequest :: Maybe LogSettings -> Text -> Text -> LBS.ByteString -> IO ()
 logHttpRequest Nothing _ _ _ = pure ()
 logHttpRequest (Just settings) method path body =
-  logLogger settings LevelDebug $
-    "→ " <> method <> " " <> path <> "\n"
-    <> "  Body: " <> truncateBody (logBodyLimit settings) body
+  logLogger settings LevelDebug
+    $ "→ "
+      <> method
+      <> " "
+      <> path
+      <> "\n"
+      <> "  Body: "
+      <> truncateBody (logBodyLimit settings) body
 
 -- | Log an HTTP response at Debug and Info levels.
 --
 -- Also emits a Warn if rate limits are below 10% remaining.
 logHttpResponse
   :: Maybe LogSettings
-  -> Text              -- ^ HTTP method
-  -> Text              -- ^ Path
-  -> Int               -- ^ Status code
-  -> NominalDiffTime   -- ^ Duration
+  -> Text
+  -- ^ HTTP method
+  -> Text
+  -- ^ Path
+  -> Int
+  -- ^ Status code
+  -> NominalDiffTime
+  -- ^ Duration
   -> Maybe RequestId
   -> Maybe RateLimitInfo
-  -> Maybe LBS.ByteString  -- ^ Response body ('Nothing' for streaming)
+  -> Maybe LBS.ByteString
+  -- ^ Response body ('Nothing' for streaming)
   -> IO ()
 logHttpResponse Nothing _ _ _ _ _ _ _ = pure ()
 logHttpResponse (Just settings) method path status duration reqId rateInfo mBody = do
@@ -155,46 +166,77 @@ logHttpResponse (Just settings) method path status duration reqId rateInfo mBody
   -- Debug: full response dump
   case mBody of
     Just body ->
-      logger LevelDebug $
-        "← " <> T.pack (show status) <> " (" <> durationTxt <> ")"
-        <> reqIdTxt <> "\n"
-        <> "  Body: " <> truncateBody (logBodyLimit settings) body
+      logger LevelDebug
+        $ "← "
+          <> T.pack (show status)
+          <> " ("
+          <> durationTxt
+          <> ")"
+          <> reqIdTxt
+          <> "\n"
+          <> "  Body: "
+          <> truncateBody (logBodyLimit settings) body
     Nothing ->
-      logger LevelDebug $
-        "← " <> T.pack (show status) <> " (" <> durationTxt <> ")"
-        <> reqIdTxt <> " [streaming]"
+      logger LevelDebug
+        $ "← "
+          <> T.pack (show status)
+          <> " ("
+          <> durationTxt
+          <> ")"
+          <> reqIdTxt
+          <> " [streaming]"
 
   -- Info: one-line summary
-  logger LevelInfo $
-    method <> " " <> path <> " → " <> T.pack (show status)
-    <> " (" <> durationTxt <> ")"
+  logger LevelInfo
+    $ method
+      <> " "
+      <> path
+      <> " → "
+      <> T.pack (show status)
+      <> " ("
+      <> durationTxt
+      <> ")"
 
   -- Warn: rate limit pressure (< 10% remaining)
   case rateInfo of
     Just rl ->
       case (rateLimitRemaining rl, rateLimitRequests rl) of
-        (Just remaining, Just total) | total > 0 && remaining * 10 < total ->
-          logger LevelWarn $
-            "Rate limit low: " <> T.pack (show remaining) <> "/"
-            <> T.pack (show total) <> " requests remaining"
+        (Just remaining, Just total)
+          | total > 0 && remaining * 10 < total ->
+              logger LevelWarn
+                $ "Rate limit low: "
+                  <> T.pack (show remaining)
+                  <> "/"
+                  <> T.pack (show total)
+                  <> " requests remaining"
         _ -> pure ()
     Nothing -> pure ()
 
 -- | Log a retry attempt at Warn level.
 logRetryAttempt
   :: Maybe LogSettings
-  -> APIError          -- ^ The error that triggered the retry
-  -> Int               -- ^ 1-based attempt number
-  -> Int               -- ^ Max attempts
-  -> NominalDiffTime   -- ^ Backoff delay
+  -> APIError
+  -- ^ The error that triggered the retry
+  -> Int
+  -- ^ 1-based attempt number
+  -> Int
+  -- ^ Max attempts
+  -> NominalDiffTime
+  -- ^ Backoff delay
   -> IO ()
 logRetryAttempt Nothing _ _ _ _ = pure ()
 logRetryAttempt (Just settings) err attempt maxAttempts backoff =
-  logLogger settings LevelWarn $
-    "Retry " <> T.pack (show attempt) <> "/" <> T.pack (show maxAttempts)
-    <> ": " <> T.pack (show (errorStatusCode err))
-    <> " " <> errorType (errorDetails err)
-    <> " — backing off " <> showDurationMs backoff
+  logLogger settings LevelWarn
+    $ "Retry "
+      <> T.pack (show attempt)
+      <> "/"
+      <> T.pack (show maxAttempts)
+      <> ": "
+      <> T.pack (show (errorStatusCode err))
+      <> " "
+      <> errorType (errorDetails err)
+      <> " — backing off "
+      <> showDurationMs backoff
 
 -- | Log a non-retryable API error at Error level.
 --
@@ -205,10 +247,13 @@ logApiError Nothing _ = pure ()
 logApiError (Just settings) err
   | isRetryable err = pure ()
   | otherwise =
-      logLogger settings LevelError $
-        "API error " <> T.pack (show (errorStatusCode err)) <> ": "
-        <> errorType (errorDetails err) <> ": "
-        <> errorMessage (errorDetails err)
+      logLogger settings LevelError
+        $ "API error "
+          <> T.pack (show (errorStatusCode err))
+          <> ": "
+          <> errorType (errorDetails err)
+          <> ": "
+          <> errorMessage (errorDetails err)
 
 -- ---------------------------------------------------------------------------
 -- Formatting utilities
@@ -226,12 +271,13 @@ truncateBody limit body
       decodeBody (LBS.toStrict body)
   | otherwise =
       decodeBody (LBS.toStrict (LBS.take (fromIntegral limit) body))
-      <> "... (" <> T.pack (show (LBS.length body - fromIntegral limit))
-      <> " bytes truncated)"
-  where
-    decodeBody bs = case TE.decodeUtf8' bs of
-      Right txt -> txt
-      Left _    -> "<binary " <> T.pack (show (BS.length bs)) <> " bytes>"
+        <> "... ("
+        <> T.pack (show (LBS.length body - fromIntegral limit))
+        <> " bytes truncated)"
+ where
+  decodeBody bs = case TE.decodeUtf8' bs of
+    Right txt -> txt
+    Left _ -> "<binary " <> T.pack (show (BS.length bs)) <> " bytes>"
 
 -- | Mask an API key for safe logging.
 --
@@ -246,7 +292,7 @@ maskApiKey key
 showDurationMs :: NominalDiffTime -> Text
 showDurationMs dt =
   let ms = round (dt * 1000) :: Int
-  in T.pack (show ms) <> "ms"
+   in T.pack (show ms) <> "ms"
 
 -- | Format a UTCTime as @HH:MM:SS@.
 formatTimestamp :: UTCTime -> Text

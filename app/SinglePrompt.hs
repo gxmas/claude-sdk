@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- |
--- Single-prompt executable for testing the Claude SDK.
---
--- Reads ANTHROPIC_API_KEY from environment, prompts user for input,
--- sends to Claude API, and prints the response or error.
+{- |
+Single-prompt executable for testing the Claude SDK.
+
+Reads ANTHROPIC_API_KEY from environment, prompts user for input,
+sends to Claude API, and prints the response or error.
+-}
 module Main (main) where
 
 import Anthropic.Claude.Client (mkClientEnv, withLogger)

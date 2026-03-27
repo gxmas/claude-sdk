@@ -1,39 +1,40 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
--- |
--- Module      : Anthropic.Claude.Types.ContentBlock
--- Description : Content block types and their dependencies
--- Copyright   : (c) 2026 Geoffrey Noël
--- License     : MIT
--- Maintainer  : noel.geoff@gmail.com
---
--- Content block types for Claude API messages. A 'ContentBlock' represents
--- a single piece of content in a message (text, image, tool use, or tool result).
---
--- This module contains:
---
--- * 'ContentBlock' and its 4 constructors (TextBlock, ImageBlock, ToolUseBlock, ToolResultBlock)
--- * Direct dependencies of ContentBlock (CacheControl, ImageSource, ToolResultContent, ToolUseInput)
--- * Helper constructors and combinators
+{- |
+Module      : Anthropic.Claude.Types.ContentBlock
+Description : Content block types and their dependencies
+Copyright   : (c) 2026 Geoffrey Noël
+License     : MIT
+Maintainer  : noel.geoff@gmail.com
+
+Content block types for Claude API messages. A 'ContentBlock' represents
+a single piece of content in a message (text, image, tool use, or tool result).
+
+This module contains:
+
+* 'ContentBlock' and its 4 constructors (TextBlock, ImageBlock, ToolUseBlock, ToolResultBlock)
+* Direct dependencies of ContentBlock (CacheControl, ImageSource, ToolResultContent, ToolUseInput)
+* Helper constructors and combinators
+-}
 module Anthropic.Claude.Types.ContentBlock
   ( -- * Content Types
-    ContentBlock (..),
-    ImageSource (..),
-    CacheControl (..),
-    ToolResultContent (..),
-    ToolUseInput (..),
+    ContentBlock (..)
+  , ImageSource (..)
+  , CacheControl (..)
+  , ToolResultContent (..)
+  , ToolUseInput (..)
 
     -- * Helper Constructors
-    textBlock,
-    imageBlock,
-    toolUseBlock,
-    toolResultText,
-    toolResultBlocks,
+  , textBlock
+  , imageBlock
+  , toolUseBlock
+  , toolResultText
+  , toolResultBlocks
 
     -- * Cache Control Helpers
-    withCacheControl,
-    ephemeralCacheControl,
+  , withCacheControl
+  , ephemeralCacheControl
   )
 where
 
@@ -50,8 +51,8 @@ import GHC.Generics (Generic)
 -- Allows marking content blocks as cacheable to reduce latency and cost
 -- on repeated requests. See: https://docs.anthropic.com/en/docs/prompt-caching
 newtype CacheControl = CacheControl
-  { -- | Currently only "ephemeral" is supported
-    cacheType :: Text
+  { cacheType :: Text
+  -- ^ Currently only "ephemeral" is supported
   }
   deriving (Eq, Show, Generic)
 
@@ -67,14 +68,14 @@ instance ToJSON CacheControl where
 -- Images can be provided as base64-encoded data or URLs
 data ImageSource
   = Base64Source
-      { -- | MIME type (e.g., "image/jpeg", "image/png")
-        base64MediaType :: Text,
-        -- | Base64-encoded image data
-        base64Data :: Text
+      { base64MediaType :: Text
+      -- ^ MIME type (e.g., "image/jpeg", "image/png")
+      , base64Data :: Text
+      -- ^ Base64-encoded image data
       }
   | URLSource
-      { -- | URL to image (must be accessible)
-        imageUrl :: Text
+      { imageUrl :: Text
+      -- ^ URL to image (must be accessible)
       }
   deriving (Eq, Show, Generic)
 
@@ -92,14 +93,14 @@ instance FromJSON ImageSource where
 instance ToJSON ImageSource where
   toJSON (Base64Source mediaType base64) =
     object
-      [ "type" .= ("base64" :: Text),
-        "media_type" .= mediaType,
-        "data" .= base64
+      [ "type" .= ("base64" :: Text)
+      , "media_type" .= mediaType
+      , "data" .= base64
       ]
   toJSON (URLSource url) =
     object
-      [ "type" .= ("url" :: Text),
-        "url" .= url
+      [ "type" .= ("url" :: Text)
+      , "url" .= url
       ]
 
 -- | Tool result content
@@ -135,8 +136,8 @@ instance ToJSON ToolResultContent where
 -- This type enforces API compliance at compile time, preventing invalid
 -- structures like String, Number, Bool, Null, or Array at the top level.
 newtype ToolUseInput = ToolUseInput
-  { -- | JSON object containing tool parameters
-    unToolUseInput :: Object
+  { unToolUseInput :: Object
+  -- ^ JSON object containing tool parameters
   }
   deriving (Eq, Show, Generic)
 
@@ -157,36 +158,36 @@ instance ToJSON ToolUseInput where
 -- * 'ToolResultBlock' - Tool execution result (in user messages)
 data ContentBlock
   = TextBlock
-      { -- | Text content
-        blockText :: Text,
-        -- | Cache control for prompt caching
-        blockCacheControl :: Maybe CacheControl
+      { blockText :: Text
+      -- ^ Text content
+      , blockCacheControl :: Maybe CacheControl
+      -- ^ Cache control for prompt caching
       }
   | ImageBlock
-      { -- | Image source (base64 or URL)
-        blockSource :: ImageSource,
-        -- | Cache control for prompt caching
-        blockCacheControl :: Maybe CacheControl
+      { blockSource :: ImageSource
+      -- ^ Image source (base64 or URL)
+      , blockCacheControl :: Maybe CacheControl
+      -- ^ Cache control for prompt caching
       }
   | ToolUseBlock
-      { -- | Unique identifier for this tool use
-        blockToolUseId :: ToolCallId,
-        -- | Name of the tool to call
-        blockToolName :: Text,
-        -- | JSON object containing tool parameters
-        blockToolInput :: ToolUseInput,
-        -- | Cache control for prompt caching
-        blockCacheControl :: Maybe CacheControl
+      { blockToolUseId :: ToolCallId
+      -- ^ Unique identifier for this tool use
+      , blockToolName :: Text
+      -- ^ Name of the tool to call
+      , blockToolInput :: ToolUseInput
+      -- ^ JSON object containing tool parameters
+      , blockCacheControl :: Maybe CacheControl
+      -- ^ Cache control for prompt caching
       }
   | ToolResultBlock
-      { -- | ID matching the ToolUseBlock
-        blockToolResultId :: ToolCallId,
-        -- | Tool execution result
-        blockToolResult :: ToolResultContent,
-        -- | Whether the tool call resulted in an error
-        blockIsError :: Maybe Bool,
-        -- | Cache control for prompt caching
-        blockCacheControl :: Maybe CacheControl
+      { blockToolResultId :: ToolCallId
+      -- ^ ID matching the ToolUseBlock
+      , blockToolResult :: ToolResultContent
+      -- ^ Tool execution result
+      , blockIsError :: Maybe Bool
+      -- ^ Whether the tool call resulted in an error
+      , blockCacheControl :: Maybe CacheControl
+      -- ^ Cache control for prompt caching
       }
   deriving (Eq, Show, Generic)
 
@@ -216,36 +217,36 @@ instance FromJSON ContentBlock where
 
 instance ToJSON ContentBlock where
   toJSON (TextBlock txt cc) =
-    object $
-      catMaybes
-        [ Just ("type" .= ("text" :: Text)),
-          Just ("text" .= txt),
-          ("cache_control" .=) <$> cc
+    object
+      $ catMaybes
+        [ Just ("type" .= ("text" :: Text))
+        , Just ("text" .= txt)
+        , ("cache_control" .=) <$> cc
         ]
   toJSON (ImageBlock src cc) =
-    object $
-      catMaybes
-        [ Just ("type" .= ("image" :: Text)),
-          Just ("source" .= src),
-          ("cache_control" .=) <$> cc
+    object
+      $ catMaybes
+        [ Just ("type" .= ("image" :: Text))
+        , Just ("source" .= src)
+        , ("cache_control" .=) <$> cc
         ]
   toJSON (ToolUseBlock toolId name input cc) =
-    object $
-      catMaybes
-        [ Just ("type" .= ("tool_use" :: Text)),
-          Just ("id" .= toolId),
-          Just ("name" .= name),
-          Just ("input" .= input),
-          ("cache_control" .=) <$> cc
+    object
+      $ catMaybes
+        [ Just ("type" .= ("tool_use" :: Text))
+        , Just ("id" .= toolId)
+        , Just ("name" .= name)
+        , Just ("input" .= input)
+        , ("cache_control" .=) <$> cc
         ]
   toJSON (ToolResultBlock toolId result isErr cc) =
-    object $
-      catMaybes
-        [ Just ("type" .= ("tool_result" :: Text)),
-          Just ("tool_use_id" .= toolId),
-          Just ("content" .= result),
-          ("is_error" .=) <$> isErr,
-          ("cache_control" .=) <$> cc
+    object
+      $ catMaybes
+        [ Just ("type" .= ("tool_result" :: Text))
+        , Just ("tool_use_id" .= toolId)
+        , Just ("content" .= result)
+        , ("is_error" .=) <$> isErr
+        , ("cache_control" .=) <$> cc
         ]
 
 -- | Smart constructor for text blocks

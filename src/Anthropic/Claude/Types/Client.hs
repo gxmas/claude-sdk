@@ -15,24 +15,24 @@ through Internal modules. Public users create ClientEnv via mkClientEnv.
 -}
 module Anthropic.Claude.Types.Client
   ( -- * Retry Configuration
-    RetryPolicy(..)
-  , BackoffStrategy(..)
+    RetryPolicy (..)
+  , BackoffStrategy (..)
   , defaultRetryPolicy
   , noRetries
   , aggressiveRetryPolicy
 
     -- * Rate Limiting
-  , RateLimitInfo(..)
+  , RateLimitInfo (..)
 
     -- * Client Environment (opaque)
-  , ClientEnv(..)
+  , ClientEnv (..)
   ) where
 
 import Anthropic.Claude.Internal.JSON
-import Anthropic.Claude.Types.RateLimitInfo (RateLimitInfo(..))
 import Anthropic.Claude.Types.Core (ApiKey)
 import Anthropic.Claude.Types.Logging (LogSettings)
 import Anthropic.Claude.Types.Observability (APIEvent)
+import Anthropic.Claude.Types.RateLimitInfo (RateLimitInfo (..))
 import Data.Time.Clock (NominalDiffTime)
 import GHC.Generics (Generic)
 import Network.HTTP.Client (Manager)
@@ -43,47 +43,57 @@ import Network.HTTP.Client (Manager)
 -- complete retry configuration.
 data BackoffStrategy
   = ExponentialBackoff
-      { exponentialBase :: NominalDiffTime  -- ^ Base delay (e.g., 1 second)
-      , exponentialMax :: NominalDiffTime   -- ^ Maximum delay cap
+      { exponentialBase :: NominalDiffTime
+      -- ^ Base delay (e.g., 1 second)
+      , exponentialMax :: NominalDiffTime
+      -- ^ Maximum delay cap
       }
   | ConstantBackoff
-      { constantDelay :: NominalDiffTime    -- ^ Fixed delay between retries
+      { constantDelay :: NominalDiffTime
+      -- ^ Fixed delay between retries
       }
-  | NoBackoff                               -- ^ No delay between retries
+  | -- | No delay between retries
+    NoBackoff
   deriving (Eq, Show, Generic)
 
 instance FromJSON BackoffStrategy where
   parseJSON = withDiscriminator "type" $ \typeField obj -> case typeField of
-    "exponential" -> ExponentialBackoff
-      <$> (fromRational <$> obj .: "base")
-      <*> (fromRational <$> obj .: "max")
-    "constant" -> ConstantBackoff
-      <$> (fromRational <$> obj .: "delay")
+    "exponential" ->
+      (ExponentialBackoff . fromRational <$> (obj .: "base"))
+        <*> (fromRational <$> obj .: "max")
+    "constant" ->
+      ConstantBackoff . fromRational <$> (obj .: "delay")
     "none" -> pure NoBackoff
     other -> fail $ "Unknown BackoffStrategy: " <> show other
 
 instance ToJSON BackoffStrategy where
-  toJSON (ExponentialBackoff base maxDelay) = object
-    [ "type" .= ("exponential" :: String)
-    , "base" .= (toRational base :: Rational)
-    , "max" .= (toRational maxDelay :: Rational)
-    ]
-  toJSON (ConstantBackoff delay) = object
-    [ "type" .= ("constant" :: String)
-    , "delay" .= (toRational delay :: Rational)
-    ]
-  toJSON NoBackoff = object
-    [ "type" .= ("none" :: String)
-    ]
+  toJSON (ExponentialBackoff base maxDelay) =
+    object
+      [ "type" .= ("exponential" :: String)
+      , "base" .= (toRational base :: Rational)
+      , "max" .= (toRational maxDelay :: Rational)
+      ]
+  toJSON (ConstantBackoff delay) =
+    object
+      [ "type" .= ("constant" :: String)
+      , "delay" .= (toRational delay :: Rational)
+      ]
+  toJSON NoBackoff =
+    object
+      [ "type" .= ("none" :: String)
+      ]
 
 -- | Retry policy configuration
 --
 -- Per ADR 0003, retry policy is configured in ClientEnv but can be
 -- overridden per-request using withRetryPolicy combinator.
 data RetryPolicy = RetryPolicy
-  { retryMaxAttempts :: Int              -- ^ Maximum number of retry attempts (0 = no retries)
-  , retryStrategy :: BackoffStrategy     -- ^ Backoff strategy between retries
-  } deriving (Eq, Show, Generic)
+  { retryMaxAttempts :: Int
+  -- ^ Maximum number of retry attempts (0 = no retries)
+  , retryStrategy :: BackoffStrategy
+  -- ^ Backoff strategy between retries
+  }
+  deriving (Eq, Show, Generic)
 
 instance FromJSON RetryPolicy where
   parseJSON = genericParseJSON (prefixOptions "retry")
@@ -98,35 +108,40 @@ instance ToJSON RetryPolicy where
 -- - Exponential backoff: 1s base, 60s max
 -- - Formula: min(60s, 1s * 2^attempt)
 defaultRetryPolicy :: RetryPolicy
-defaultRetryPolicy = RetryPolicy
-  { retryMaxAttempts = 3
-  , retryStrategy = ExponentialBackoff
-      { exponentialBase = 1.0    -- 1 second
-      , exponentialMax = 60.0    -- 60 seconds cap
-      }
-  }
+defaultRetryPolicy =
+  RetryPolicy
+    { retryMaxAttempts = 3
+    , retryStrategy =
+        ExponentialBackoff
+          { exponentialBase = 1.0 -- 1 second
+          , exponentialMax = 60.0 -- 60 seconds cap
+          }
+    }
 
 -- | No retries policy
 --
 -- Useful for operations that should fail fast
 noRetries :: RetryPolicy
-noRetries = RetryPolicy
-  { retryMaxAttempts = 0
-  , retryStrategy = NoBackoff
-  }
+noRetries =
+  RetryPolicy
+    { retryMaxAttempts = 0
+    , retryStrategy = NoBackoff
+    }
 
 -- | Aggressive retry policy for resilient operations
 --
 -- - Max 5 retries
 -- - Exponential backoff: 0.5s base, 120s max
 aggressiveRetryPolicy :: RetryPolicy
-aggressiveRetryPolicy = RetryPolicy
-  { retryMaxAttempts = 5
-  , retryStrategy = ExponentialBackoff
-      { exponentialBase = 0.5    -- 500ms
-      , exponentialMax = 120.0   -- 2 minutes cap
-      }
-  }
+aggressiveRetryPolicy =
+  RetryPolicy
+    { retryMaxAttempts = 5
+    , retryStrategy =
+        ExponentialBackoff
+          { exponentialBase = 0.5 -- 500ms
+          , exponentialMax = 120.0 -- 2 minutes cap
+          }
+    }
 
 -- | Client environment (opaque type)
 --

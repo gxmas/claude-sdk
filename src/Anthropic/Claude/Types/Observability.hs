@@ -1,31 +1,32 @@
--- |
--- Module      : Anthropic.Claude.Types.Observability
--- Description : Observability event types for monitoring and tracing
--- Copyright   : (c) 2026 Geoffrey Noël
--- License     : MIT
--- Maintainer  : noel.geoff@gmail.com
---
--- Callback-based observability layer for the Claude SDK. Users provide
--- an 'EventHandler' to observe request/response lifecycle events.
---
--- Zero-cost when unused: if no handler is set ('Nothing'), no event
--- data is constructed.
+{- |
+Module      : Anthropic.Claude.Types.Observability
+Description : Observability event types for monitoring and tracing
+Copyright   : (c) 2026 Geoffrey Noël
+License     : MIT
+Maintainer  : noel.geoff@gmail.com
+
+Callback-based observability layer for the Claude SDK. Users provide
+an 'EventHandler' to observe request/response lifecycle events.
+
+Zero-cost when unused: if no handler is set ('Nothing'), no event
+data is constructed.
+-}
 module Anthropic.Claude.Types.Observability
   ( -- * Event Types
-    APIEvent (..),
-    HttpRequestEvent (..),
-    HttpResponseEvent (..),
-    RetryEvent (..),
+    APIEvent (..)
+  , HttpRequestEvent (..)
+  , HttpResponseEvent (..)
+  , RetryEvent (..)
 
     -- * Event Handler
-    EventHandler,
+  , EventHandler
 
     -- * Combinators
-    noOpHandler,
-    combineHandlers,
+  , noOpHandler
+  , combineHandlers
 
     -- * Internal
-    emitEvent,
+  , emitEvent
   )
 where
 
@@ -49,29 +50,29 @@ data APIEvent
 
 -- | Emitted before an HTTP request is sent.
 data HttpRequestEvent = HttpRequestEvent
-  { reqMethod :: Text,
-    reqPath :: Text,
-    reqTimestamp :: UTCTime
+  { reqMethod :: Text
+  , reqPath :: Text
+  , reqTimestamp :: UTCTime
   }
   deriving (Eq, Show)
 
 -- | Emitted after an HTTP response is received.
 data HttpResponseEvent = HttpResponseEvent
-  { respStatusCode :: Int,
-    respDuration :: NominalDiffTime,
-    respRequestId :: Maybe RequestId,
-    respRateLimitInfo :: Maybe RateLimitInfo
+  { respStatusCode :: Int
+  , respDuration :: NominalDiffTime
+  , respRequestId :: Maybe RequestId
+  , respRateLimitInfo :: Maybe RateLimitInfo
   }
   deriving (Eq, Show)
 
 -- | Emitted before a retry delay.
 data RetryEvent = RetryEvent
-  { retryEvtError :: APIError,
-    -- | 1-based attempt number
-    retryEvtAttempt :: Int,
-    retryEvtMaxAttempts :: Int,
-    -- | Delay before next attempt
-    retryEvtBackoff :: NominalDiffTime
+  { retryEvtError :: APIError
+  , retryEvtAttempt :: Int
+  -- ^ 1-based attempt number
+  , retryEvtMaxAttempts :: Int
+  , retryEvtBackoff :: NominalDiffTime
+  -- ^ Delay before next attempt
   }
   deriving (Eq, Show)
 

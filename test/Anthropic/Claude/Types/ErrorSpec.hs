@@ -14,31 +14,33 @@ import Test.QuickCheck
 -- QuickCheck Generators
 
 instance Arbitrary ErrorDetails where
-  arbitrary = ErrorDetails
-    <$> elements errorTypes
-    <*> genText
-    where
-      errorTypes =
-        [ "invalid_request_error"
-        , "authentication_error"
-        , "permission_error"
-        , "not_found_error"
-        , "rate_limit_error"
-        , "api_error"
-        , "overloaded_error"
-        ]
-      genText = T.pack <$> listOf1 (elements ['a'..'z'])
+  arbitrary =
+    ErrorDetails
+      <$> elements errorTypes
+      <*> genText
+   where
+    errorTypes =
+      [ "invalid_request_error"
+      , "authentication_error"
+      , "permission_error"
+      , "not_found_error"
+      , "rate_limit_error"
+      , "api_error"
+      , "overloaded_error"
+      ]
+    genText = T.pack <$> listOf1 (elements ['a' .. 'z'])
 
 instance Arbitrary APIErrorKind where
-  arbitrary = elements
-    [ InvalidRequestError
-    , AuthenticationError
-    , PermissionError
-    , NotFoundError
-    , RateLimitError
-    , ServerError
-    , OverloadedError
-    ]
+  arbitrary =
+    elements
+      [ InvalidRequestError
+      , AuthenticationError
+      , PermissionError
+      , NotFoundError
+      , RateLimitError
+      , ServerError
+      , OverloadedError
+      ]
 
 instance Arbitrary APIError where
   arbitrary = do
@@ -51,60 +53,62 @@ instance Arbitrary APIError where
           RateLimitError -> "rate_limit_error"
           ServerError -> "api_error"
           OverloadedError -> "overloaded_error"
-    msg <- T.pack <$> listOf1 (elements ['a'..'z'])
+    msg <- T.pack <$> listOf1 (elements ['a' .. 'z'])
     let details = ErrorDetails typeString msg
     status <- choose (400, 529)
     pure $ APIError kind details status
 
 instance Arbitrary NetworkError where
-  arbitrary = oneof
-    [ ConnectionError <$> genText
-    , TimeoutError <$> genText
-    , TLSError <$> genText
-    , DNSError <$> genText
-    , UnknownNetworkError <$> genText
-    ]
-    where
-      genText = T.pack <$> listOf1 (elements ['a'..'z'])
+  arbitrary =
+    oneof
+      [ ConnectionError <$> genText
+      , TimeoutError <$> genText
+      , TLSError <$> genText
+      , DNSError <$> genText
+      , UnknownNetworkError <$> genText
+      ]
+   where
+    genText = T.pack <$> listOf1 (elements ['a' .. 'z'])
 
 -- Test Suite
 
 spec :: Spec
 spec = describe "Types.Error" $ do
-
   describe "ErrorDetails" $ do
     it "parses from JSON" $ do
       let json = "{\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Invalid parameter\"}}"
       let expected = ErrorDetails "invalid_request_error" "Invalid parameter"
       decode json `shouldBe` Just expected
 
-    it "round-trips through JSON" $ property $
-      \(details :: ErrorDetails) -> decode (encode details) === Just details
+    it "round-trips through JSON"
+      $ property
+      $ \(details :: ErrorDetails) -> decode (encode details) === Just details
 
   describe "APIErrorKind" $ do
-    it "encodes InvalidRequestError as \"invalid_request_error\"" $
-      encode InvalidRequestError `shouldBe` "\"invalid_request_error\""
+    it "encodes InvalidRequestError as \"invalid_request_error\""
+      $ encode InvalidRequestError `shouldBe` "\"invalid_request_error\""
 
-    it "encodes AuthenticationError as \"authentication_error\"" $
-      encode AuthenticationError `shouldBe` "\"authentication_error\""
+    it "encodes AuthenticationError as \"authentication_error\""
+      $ encode AuthenticationError `shouldBe` "\"authentication_error\""
 
-    it "encodes PermissionError as \"permission_error\"" $
-      encode PermissionError `shouldBe` "\"permission_error\""
+    it "encodes PermissionError as \"permission_error\""
+      $ encode PermissionError `shouldBe` "\"permission_error\""
 
-    it "encodes NotFoundError as \"not_found_error\"" $
-      encode NotFoundError `shouldBe` "\"not_found_error\""
+    it "encodes NotFoundError as \"not_found_error\""
+      $ encode NotFoundError `shouldBe` "\"not_found_error\""
 
-    it "encodes RateLimitError as \"rate_limit_error\"" $
-      encode RateLimitError `shouldBe` "\"rate_limit_error\""
+    it "encodes RateLimitError as \"rate_limit_error\""
+      $ encode RateLimitError `shouldBe` "\"rate_limit_error\""
 
-    it "encodes ServerError as \"api_error\"" $
-      encode ServerError `shouldBe` "\"api_error\""
+    it "encodes ServerError as \"api_error\""
+      $ encode ServerError `shouldBe` "\"api_error\""
 
-    it "encodes OverloadedError as \"overloaded_error\"" $
-      encode OverloadedError `shouldBe` "\"overloaded_error\""
+    it "encodes OverloadedError as \"overloaded_error\""
+      $ encode OverloadedError `shouldBe` "\"overloaded_error\""
 
-    it "round-trips through JSON" $ property $
-      \(kind :: APIErrorKind) -> decode (encode kind) === Just kind
+    it "round-trips through JSON"
+      $ property
+      $ \(kind :: APIErrorKind) -> decode (encode kind) === Just kind
 
   describe "APIError" $ do
     it "parses from API error response" $ do
@@ -116,8 +120,9 @@ spec = describe "Types.Error" $ do
           status `shouldBe` 429
         Nothing -> expectationFailure "Failed to parse APIError"
 
-    it "round-trips through JSON" $ property $
-      \(err :: APIError) -> decode (encode err) === Just err
+    it "round-trips through JSON"
+      $ property
+      $ \(err :: APIError) -> decode (encode err) === Just err
 
   describe "isRetryable" $ do
     it "returns True for RateLimitError" $ do
@@ -149,29 +154,29 @@ spec = describe "Types.Error" $ do
       isRetryable err `shouldBe` False
 
   describe "errorKindFromStatus" $ do
-    it "maps 400 to InvalidRequestError" $
-      errorKindFromStatus status400 `shouldBe` InvalidRequestError
+    it "maps 400 to InvalidRequestError"
+      $ errorKindFromStatus status400 `shouldBe` InvalidRequestError
 
-    it "maps 401 to AuthenticationError" $
-      errorKindFromStatus status401 `shouldBe` AuthenticationError
+    it "maps 401 to AuthenticationError"
+      $ errorKindFromStatus status401 `shouldBe` AuthenticationError
 
-    it "maps 403 to PermissionError" $
-      errorKindFromStatus status403 `shouldBe` PermissionError
+    it "maps 403 to PermissionError"
+      $ errorKindFromStatus status403 `shouldBe` PermissionError
 
-    it "maps 404 to NotFoundError" $
-      errorKindFromStatus status404 `shouldBe` NotFoundError
+    it "maps 404 to NotFoundError"
+      $ errorKindFromStatus status404 `shouldBe` NotFoundError
 
-    it "maps 429 to RateLimitError" $
-      errorKindFromStatus status429 `shouldBe` RateLimitError
+    it "maps 429 to RateLimitError"
+      $ errorKindFromStatus status429 `shouldBe` RateLimitError
 
-    it "maps 500 to ServerError" $
-      errorKindFromStatus status500 `shouldBe` ServerError
+    it "maps 500 to ServerError"
+      $ errorKindFromStatus status500 `shouldBe` ServerError
 
-    it "maps 529 to OverloadedError" $
-      errorKindFromStatus (Status 529 "") `shouldBe` OverloadedError
+    it "maps 529 to OverloadedError"
+      $ errorKindFromStatus (Status 529 "") `shouldBe` OverloadedError
 
-    it "maps 5xx codes to ServerError" $
-      errorKindFromStatus (Status 503 "") `shouldBe` ServerError
+    it "maps 5xx codes to ServerError"
+      $ errorKindFromStatus (Status 503 "") `shouldBe` ServerError
 
   describe "NetworkError" $ do
     it "shows ConnectionError correctly" $ do

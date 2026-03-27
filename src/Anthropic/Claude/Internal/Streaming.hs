@@ -43,11 +43,11 @@ import qualified Data.ByteString.Char8 as BS8
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
-import Data.Time.Clock (getCurrentTime, diffUTCTime)
-import Network.HTTP.Client (RequestBody(..), BodyReader, brRead, brConsume)
+import Data.Time.Clock (diffUTCTime, getCurrentTime)
+import Network.HTTP.Client (BodyReader, RequestBody (..), brConsume, brRead)
 import qualified Network.HTTP.Client as HTTP
 import Network.HTTP.Types.Status (statusCode)
-import Streaming (Stream, Of)
+import Streaming (Of, Stream)
 import qualified Streaming.Prelude as S
 import UnliftIO (MonadIO, liftIO)
 
@@ -73,7 +73,7 @@ createMessageStream
 createMessageStream env req = do
   let handler = clientEventHandler env
       logSettings = clientLogSettings env
-      streamReq = req { requestStream = Just True }
+      streamReq = req {requestStream = Just True}
       bodyBS = Aeson.encode streamReq
       path = "/v1/messages"
       method = "POST"
@@ -81,8 +81,13 @@ createMessageStream env req = do
 
   -- Emit request event + log
   startTime <- getCurrentTime
-  emitEvent handler $ HttpRequest HttpRequestEvent
-    { reqMethod = method, reqPath = pathTxt, reqTimestamp = startTime }
+  emitEvent handler
+    $ HttpRequest
+      HttpRequestEvent
+        { reqMethod = method
+        , reqPath = pathTxt
+        , reqTimestamp = startTime
+        }
   logHttpRequest logSettings method pathTxt bodyBS
 
   httpReq <- buildRequest env methodPost path (RequestBodyLBS bodyBS)
@@ -93,20 +98,23 @@ createMessageStream env req = do
   -- Emit response event + log (no body for streaming)
   endTime <- getCurrentTime
   let respHeaders = HTTP.responseHeaders httpResp
-      reqId = lookup "request-id" respHeaders >>= \rid ->
-        case TE.decodeUtf8' rid of
-          Right txt -> Just (RequestId txt)
-          Left _ -> Nothing
+      reqId =
+        lookup "request-id" respHeaders >>= \rid ->
+          case TE.decodeUtf8' rid of
+            Right txt -> Just (RequestId txt)
+            Left _ -> Nothing
       rateInfo = extractRateLimitInfo respHeaders
       respStatus = HTTP.responseStatus httpResp
       status = statusCode respStatus
       duration = diffUTCTime endTime startTime
-  emitEvent handler $ HttpResponse HttpResponseEvent
-    { respStatusCode    = status
-    , respDuration      = duration
-    , respRequestId     = reqId
-    , respRateLimitInfo = rateInfo
-    }
+  emitEvent handler
+    $ HttpResponse
+      HttpResponseEvent
+        { respStatusCode = status
+        , respDuration = duration
+        , respRequestId = reqId
+        , respRateLimitInfo = rateInfo
+        }
   logHttpResponse logSettings method pathTxt status duration reqId rateInfo Nothing
 
   if status /= 200
@@ -116,7 +124,7 @@ createMessageStream env req = do
       let bodyLBS = LBS.fromChunks chunks
           errKind = errorKindFromStatus respStatus
           apiErr = case Aeson.eitherDecode bodyLBS of
-            Left _  -> APIError errKind (ErrorDetails "unknown_error" "Failed to parse error response") status
+            Left _ -> APIError errKind (ErrorDetails "unknown_error" "Failed to parse error response") status
             Right d -> APIError errKind d status
       let errStream = do
             S.yield (Left apiErr)
@@ -127,8 +135,8 @@ createMessageStream env req = do
       let bodyReader = HTTP.responseBody httpResp
           stream = parseBodyReaderToStream bodyReader
       pure (httpResp, stream)
-  where
-    methodPost = "POST"
+ where
+  methodPost = "POST"
 
 -- | Read SSE data from a 'BodyReader' and produce a typed stream.
 --
@@ -144,27 +152,27 @@ parseBodyReaderToStream bodyReader = do
 
   -- Yield each event and accumulate the final message
   go defaultMessageResponse decoded
-  where
-    go acc [] = pure acc
-    go acc (item : rest) = do
-      S.yield item
-      let acc' = case item of
-            Right evt -> updateMessageResponse evt acc
-            Left _    -> acc
-      go acc' rest
+ where
+  go acc [] = pure acc
+  go acc (item : rest) = do
+    S.yield item
+    let acc' = case item of
+          Right evt -> updateMessageResponse evt acc
+          Left _ -> acc
+    go acc' rest
 
-    maybeToList Nothing  = []
-    maybeToList (Just x) = [x]
+  maybeToList Nothing = []
+  maybeToList (Just x) = [x]
 
 -- | Read all bytes from a BodyReader.
 readAllChunks :: BodyReader -> IO BS.ByteString
 readAllChunks reader = BS.concat <$> go
-  where
-    go = do
-      chunk <- brRead reader
-      if BS.null chunk
-        then pure []
-        else (chunk :) <$> go
+ where
+  go = do
+    chunk <- brRead reader
+    if BS.null chunk
+      then pure []
+      else (chunk :) <$> go
 
 -- | Decode an SSE event into a StreamEvent or APIError.
 decodeSSEEvent :: SSEEvent -> Maybe (Either APIError StreamEvent)
@@ -172,10 +180,13 @@ decodeSSEEvent (SSEEvent eventType eventData)
   | T.null eventData = Nothing
   | eventType == Just "ping" = Just (Right Ping)
   | otherwise = case Aeson.eitherDecode (LBS.fromStrict $ TE.encodeUtf8 eventData) of
-      Left err -> Just $ Left $ APIError
-        InvalidRequestError
-        (ErrorDetails "parse_error" (T.pack err))
-        200
+      Left err ->
+        Just
+          $ Left
+          $ APIError
+            InvalidRequestError
+            (ErrorDetails "parse_error" (T.pack err))
+            200
       Right evt -> Just (Right evt)
 
 -- | Update the accumulated MessageResponse with data from a StreamEvent.
@@ -183,22 +194,22 @@ updateMessageResponse :: StreamEvent -> MessageResponse -> MessageResponse
 updateMessageResponse (MessageStart payload) _ = messageStartMessage payload
 updateMessageResponse (ContentBlockStart payload) resp =
   let block = contentBlockStartBlock payload
-  in resp { responseContent = responseContent resp ++ [block] }
+   in resp {responseContent = responseContent resp ++ [block]}
 updateMessageResponse (ContentBlockDelta payload) resp =
   case contentBlockDeltaDelta payload of
     TextDelta txt ->
       let idx = contentBlockDeltaIndex payload
           content' = updateContentAt idx (appendText txt) (responseContent resp)
-      in resp { responseContent = content' }
+       in resp {responseContent = content'}
     InputJsonDelta _ -> resp
 updateMessageResponse (MessageDelta payload) resp =
   let delta = messageDeltaDelta payload
       usage = messageDeltaUsage payload
-  in resp
-    { responseStopReason   = deltaStopReason delta
-    , responseStopSequence = deltaStopSequence delta
-    , responseUsage        = usage
-    }
+   in resp
+        { responseStopReason = deltaStopReason delta
+        , responseStopSequence = deltaStopSequence delta
+        , responseUsage = usage
+        }
 updateMessageResponse _ resp = resp
 
 -- | Append text to a TextBlock.
@@ -209,18 +220,19 @@ appendText _ block = block
 -- | Update the content block at a specific index.
 updateContentAt :: Int -> (ContentBlock -> ContentBlock) -> [ContentBlock] -> [ContentBlock]
 updateContentAt _ _ [] = []
-updateContentAt 0 f (x:xs) = f x : xs
-updateContentAt n f (x:xs) = x : updateContentAt (n-1) f xs
+updateContentAt 0 f (x : xs) = f x : xs
+updateContentAt n f (x : xs) = x : updateContentAt (n - 1) f xs
 
 -- | Default empty message response used as accumulator starting point.
 defaultMessageResponse :: MessageResponse
-defaultMessageResponse = MessageResponse
-  { responseId           = MessageId ""
-  , responseType         = "message"
-  , responseRole         = Assistant
-  , responseContent      = []
-  , responseModel        = ModelId ""
-  , responseStopReason   = Nothing
-  , responseStopSequence = Nothing
-  , responseUsage        = Usage 0 0 Nothing Nothing
-  }
+defaultMessageResponse =
+  MessageResponse
+    { responseId = MessageId ""
+    , responseType = "message"
+    , responseRole = Assistant
+    , responseContent = []
+    , responseModel = ModelId ""
+    , responseStopReason = Nothing
+    , responseStopSequence = Nothing
+    , responseUsage = Usage 0 0 Nothing Nothing
+    }

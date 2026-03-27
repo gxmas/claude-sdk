@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- |
--- Tool use example for the Claude SDK.
---
--- Demonstrates defining a tool, sending a request that triggers tool use,
--- extracting the tool call, and sending back a result.
+{- |
+Tool use example for the Claude SDK.
+
+Demonstrates defining a tool, sending a request that triggers tool use,
+extracting the tool call, and sending back a result.
+-}
 module Main (main) where
 
 import Anthropic.Claude (withLogger)
@@ -69,9 +70,10 @@ main = do
 
                 -- METHOD 1: buildToolResult - for JSON objects (encodes to text automatically)
                 -- Use when you have structured data to return
-                let resultBlock = buildToolResult tid $
-                      object ["temperature" .= (72 :: Int), "unit" .= ("F" :: T.Text)]
-                    -- Produces: ToolResultText "{\"temperature\":72,\"unit\":\"F\"}"
+                let resultBlock =
+                      buildToolResult tid
+                        $ object ["temperature" .= (72 :: Int), "unit" .= ("F" :: T.Text)]
+                -- Produces: ToolResultText "{\"temperature\":72,\"unit\":\"F\"}"
 
                 -- METHOD 2: toolResultText - for simple text responses
                 -- Use for plain text results
@@ -92,9 +94,9 @@ main = do
                 let followUp =
                       ( mkRequest
                           claude4Sonnet
-                          [ userMsg "What's the weather in San Francisco?",
-                            assistantMsgBlocks (responseContent msg),
-                            Message User (BlocksContent [resultBlock])
+                          [ userMsg "What's the weather in San Francisco?"
+                          , assistantMsgBlocks (responseContent msg)
+                          , Message User (BlocksContent [resultBlock])
                           ]
                           1024
                       )

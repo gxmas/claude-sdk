@@ -15,16 +15,16 @@ enumerations for roles and stop reasons, and model ID constants.
 -}
 module Anthropic.Claude.Types.Core
   ( -- * Identifier Types
-    ApiKey(..)
-  , ModelId(..)
-  , RequestId(..)
-  , MessageId(..)
-  , BatchId(..)
-  , ToolCallId(..)
+    ApiKey (..)
+  , ModelId (..)
+  , RequestId (..)
+  , MessageId (..)
+  , BatchId (..)
+  , ToolCallId (..)
 
     -- * Enumerations
-  , Role(..)
-  , StopReason(..)
+  , Role (..)
+  , StopReason (..)
 
     -- * Model Constants
   , claude4Opus
@@ -32,7 +32,7 @@ module Anthropic.Claude.Types.Core
   , claude35Haiku
   ) where
 
-import Data.Aeson (FromJSON(..), ToJSON(..), withText)
+import Data.Aeson (FromJSON (..), ToJSON (..), withText)
 import Data.String (IsString)
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -41,37 +41,39 @@ import GHC.Generics (Generic)
 -- | API key for authenticating with the Claude API
 --
 -- Obtain from: https://console.anthropic.com/settings/keys
-newtype ApiKey = ApiKey { unApiKey :: Text }
+newtype ApiKey = ApiKey {unApiKey :: Text}
   deriving (Eq, Show, Generic, IsString, FromJSON, ToJSON)
 
 -- | Claude model identifier
 --
 -- Examples: @claude-opus-4-6@, @claude-sonnet-4-6@, @claude-haiku-4-5@
-newtype ModelId = ModelId { unModelId :: Text }
+newtype ModelId = ModelId {unModelId :: Text}
   deriving (Eq, Show, Generic, IsString, FromJSON, ToJSON)
 
 -- | Unique identifier for an API request
 --
 -- Returned in the @x-request-id@ header and can be used for debugging
-newtype RequestId = RequestId { unRequestId :: Text }
+newtype RequestId = RequestId {unRequestId :: Text}
   deriving (Eq, Show, Generic, IsString, FromJSON, ToJSON)
 
 -- | Unique identifier for a message
-newtype MessageId = MessageId { unMessageId :: Text }
+newtype MessageId = MessageId {unMessageId :: Text}
   deriving (Eq, Show, Generic, IsString, FromJSON, ToJSON)
 
 -- | Unique identifier for a batch operation
-newtype BatchId = BatchId { unBatchId :: Text }
+newtype BatchId = BatchId {unBatchId :: Text}
   deriving (Eq, Show, Generic, IsString, FromJSON, ToJSON)
 
 -- | Unique identifier for a tool call
-newtype ToolCallId = ToolCallId { unToolCallId :: Text }
+newtype ToolCallId = ToolCallId {unToolCallId :: Text}
   deriving (Eq, Show, Generic, IsString, FromJSON, ToJSON)
 
 -- | Role in a conversation
 data Role
-  = User      -- ^ Human message
-  | Assistant -- ^ Claude's response
+  = -- | Human message
+    User
+  | -- | Claude's response
+    Assistant
   deriving (Eq, Show, Generic, Enum, Bounded)
 
 instance FromJSON Role where
@@ -86,10 +88,14 @@ instance ToJSON Role where
 
 -- | Reason why Claude stopped generating
 data StopReason
-  = EndTurn      -- ^ Natural completion point
-  | MaxTokens    -- ^ Maximum token limit reached
-  | StopSequence -- ^ Custom stop sequence encountered
-  | ToolUse      -- ^ Model wants to use a tool
+  = -- | Natural completion point
+    EndTurn
+  | -- | Maximum token limit reached
+    MaxTokens
+  | -- | Custom stop sequence encountered
+    StopSequence
+  | -- | Model wants to use a tool
+    ToolUse
   deriving (Eq, Show, Generic, Enum, Bounded)
 
 instance FromJSON StopReason where

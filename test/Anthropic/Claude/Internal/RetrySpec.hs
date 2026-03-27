@@ -15,20 +15,20 @@ import UnliftIO (liftIO)
 
 -- | Build a test ClientEnv with the given RetryPolicy and optional event handler.
 testEnv :: RetryPolicy -> Maybe EventHandler -> ClientEnv
-testEnv policy handler = ClientEnv
-  { clientApiKey = ApiKey "test"
-  , clientRetryPolicy = policy
-  , clientBaseUrl = "https://api.anthropic.com"
-  , clientManager = undefined  -- Not used in retry tests
-  , clientEventHandler = handler
-  , clientLogSettings = Nothing
-  }
+testEnv policy handler =
+  ClientEnv
+    { clientApiKey = ApiKey "test"
+    , clientRetryPolicy = policy
+    , clientBaseUrl = "https://api.anthropic.com"
+    , clientManager = undefined -- Not used in retry tests
+    , clientEventHandler = handler
+    , clientLogSettings = Nothing
+    }
 
 -- Tests
 
 spec :: Spec
 spec = describe "Internal.Retry" $ do
-
   describe "shouldRetryError" $ do
     it "returns True for RateLimitError" $ do
       let err = APIError RateLimitError (ErrorDetails "rate_limit_error" "msg") 429
@@ -69,9 +69,8 @@ spec = describe "Internal.Retry" $ do
 
     it "exponential backoff respects max delay cap" $ do
       let policy = RetryPolicy 10 (ExponentialBackoff 1.0 10.0)
-      calculateBackoff policy 5 `shouldBe` 10.0  -- 32 capped to 10
-      calculateBackoff policy 10 `shouldBe` 10.0  -- 1024 capped to 10
-
+      calculateBackoff policy 5 `shouldBe` 10.0 -- 32 capped to 10
+      calculateBackoff policy 10 `shouldBe` 10.0 -- 1024 capped to 10
     it "constant backoff returns fixed delay" $ do
       let policy = RetryPolicy 5 (ConstantBackoff 2.5)
       calculateBackoff policy 0 `shouldBe` 2.5
@@ -95,22 +94,21 @@ spec = describe "Internal.Retry" $ do
           err = APIError InvalidRequestError (ErrorDetails "invalid_request_error" "msg") 400
           action :: IO (Either APIError Int)
           action = do
-            modifyIORef' counter (+1)
+            modifyIORef' counter (+ 1)
             pure $ Left err
 
       result <- withRetry env action
       count <- readIORef counter
 
       result `shouldBe` Left err
-      count `shouldBe` 1  -- Should only attempt once
-
+      count `shouldBe` 1 -- Should only attempt once
     it "retries on retryable errors" $ do
       counter <- newIORef (0 :: Int)
       let env = testEnv (RetryPolicy 3 NoBackoff) Nothing
           err = APIError RateLimitError (ErrorDetails "rate_limit_error" "msg") 429
           action :: IO (Either APIError Int)
           action = do
-            modifyIORef' counter (+1)
+            modifyIORef' counter (+ 1)
             count <- readIORef counter
             if count < 3
               then pure $ Left err
@@ -120,30 +118,28 @@ spec = describe "Internal.Retry" $ do
       count <- readIORef counter
 
       result `shouldBe` Right 42
-      count `shouldBe` 3  -- Initial + 2 retries
-
+      count `shouldBe` 3 -- Initial + 2 retries
     it "respects max attempts limit" $ do
       counter <- newIORef (0 :: Int)
       let env = testEnv (RetryPolicy 2 NoBackoff) Nothing
           err = APIError ServerError (ErrorDetails "api_error" "msg") 500
           action :: IO (Either APIError Int)
           action = do
-            modifyIORef' counter (+1)
+            modifyIORef' counter (+ 1)
             pure $ Left err
 
       result <- withRetry env action
       count <- readIORef counter
 
       result `shouldBe` Left err
-      count `shouldBe` 3  -- Initial attempt + 2 retries
-
+      count `shouldBe` 3 -- Initial attempt + 2 retries
     it "stops retrying once successful" $ do
       counter <- newIORef (0 :: Int)
       let env = testEnv (RetryPolicy 5 NoBackoff) Nothing
           err = APIError RateLimitError (ErrorDetails "rate_limit_error" "msg") 429
           action :: IO (Either APIError Int)
           action = do
-            modifyIORef' counter (+1)
+            modifyIORef' counter (+ 1)
             count <- readIORef counter
             if count < 2
               then pure $ Left err
@@ -153,8 +149,7 @@ spec = describe "Internal.Retry" $ do
       count <- readIORef counter
 
       result `shouldBe` Right 42
-      count `shouldBe` 2  -- Should stop after success, not continue to max attempts
-
+      count `shouldBe` 2 -- Should stop after success, not continue to max attempts
     it "emits RetryEvent via event handler" $ do
       eventsRef <- newIORef ([] :: [APIEvent])
       let handler evt = modifyIORef' eventsRef (evt :)
@@ -163,7 +158,7 @@ spec = describe "Internal.Retry" $ do
       counter <- newIORef (0 :: Int)
       let action :: IO (Either APIError Int)
           action = do
-            modifyIORef' counter (+1)
+            modifyIORef' counter (+ 1)
             count <- readIORef counter
             if count < 3
               then pure $ Left err

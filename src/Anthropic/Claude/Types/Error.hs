@@ -15,12 +15,12 @@ Error types for the Claude SDK following ADR 0002:
 -}
 module Anthropic.Claude.Types.Error
   ( -- * API Errors
-    APIError(..)
-  , APIErrorKind(..)
-  , ErrorDetails(..)
+    APIError (..)
+  , APIErrorKind (..)
+  , ErrorDetails (..)
 
     -- * Network Errors (Exceptions)
-  , NetworkError(..)
+  , NetworkError (..)
 
     -- * Helper Functions
   , isRetryable
@@ -32,13 +32,16 @@ import Control.Exception (Exception)
 import Data.Text (Text)
 import qualified Data.Text as T
 import GHC.Generics (Generic)
-import Network.HTTP.Types.Status (Status(..))
+import Network.HTTP.Types.Status (Status (..))
 
 -- | Error details from API error responses
 data ErrorDetails = ErrorDetails
-  { errorType :: Text        -- ^ Error type (e.g., "invalid_request_error")
-  , errorMessage :: Text     -- ^ Human-readable error message
-  } deriving (Eq, Show, Generic)
+  { errorType :: Text
+  -- ^ Error type (e.g., "invalid_request_error")
+  , errorMessage :: Text
+  -- ^ Human-readable error message
+  }
+  deriving (Eq, Show, Generic)
 
 instance FromJSON ErrorDetails where
   parseJSON = withObject "ErrorDetails" $ \obj -> do
@@ -48,22 +51,31 @@ instance FromJSON ErrorDetails where
       <*> errObj .: "message"
 
 instance ToJSON ErrorDetails where
-  toJSON (ErrorDetails typ msg) = object
-    [ "error" .= object
-        [ "type" .= typ
-        , "message" .= msg
-        ]
-    ]
+  toJSON (ErrorDetails typ msg) =
+    object
+      [ "error"
+          .= object
+            [ "type" .= typ
+            , "message" .= msg
+            ]
+      ]
 
 -- | Classification of API error types
 data APIErrorKind
-  = InvalidRequestError     -- ^ 400 - Malformed request
-  | AuthenticationError     -- ^ 401 - Invalid API key
-  | PermissionError         -- ^ 403 - Insufficient permissions
-  | NotFoundError           -- ^ 404 - Resource not found
-  | RateLimitError          -- ^ 429 - Rate limit exceeded
-  | ServerError             -- ^ 500 - Internal server error
-  | OverloadedError         -- ^ 529 - Service temporarily overloaded
+  = -- | 400 - Malformed request
+    InvalidRequestError
+  | -- | 401 - Invalid API key
+    AuthenticationError
+  | -- | 403 - Insufficient permissions
+    PermissionError
+  | -- | 404 - Resource not found
+    NotFoundError
+  | -- | 429 - Rate limit exceeded
+    RateLimitError
+  | -- | 500 - Internal server error
+    ServerError
+  | -- | 529 - Service temporarily overloaded
+    OverloadedError
   deriving (Eq, Show, Generic, Enum, Bounded)
 
 instance FromJSON APIErrorKind where
@@ -94,7 +106,8 @@ data APIError = APIError
   { errorKind :: APIErrorKind
   , errorDetails :: ErrorDetails
   , errorStatusCode :: Int
-  } deriving (Eq, Show, Generic)
+  }
+  deriving (Eq, Show, Generic)
 
 instance FromJSON APIError where
   parseJSON = withObject "APIError" $ \obj -> do
@@ -107,18 +120,20 @@ instance FromJSON APIError where
           "rate_limit_error" -> RateLimitError
           "api_error" -> ServerError
           "overloaded_error" -> OverloadedError
-          _ -> ServerError  -- Default to server error for unknown types
+          _ -> ServerError -- Default to server error for unknown types
     status <- obj .:? "status" .!= 500
     pure $ APIError kind details status
 
 instance ToJSON APIError where
-  toJSON (APIError kind details status) = object
-    [ "error" .= object
-        [ "type" .= toJSON kind
-        , "message" .= errorMessage details
-        ]
-    , "status" .= status
-    ]
+  toJSON (APIError kind details status) =
+    object
+      [ "error"
+          .= object
+            [ "type" .= toJSON kind
+            , "message" .= errorMessage details
+            ]
+      , "status" .= status
+      ]
 
 -- | Network errors (thrown as exceptions per ADR 0002)
 --
@@ -128,11 +143,16 @@ instance ToJSON APIError where
 -- - TLS handshake failures
 -- - Timeout errors
 data NetworkError
-  = ConnectionError Text      -- ^ Failed to establish connection
-  | TimeoutError Text         -- ^ Request timed out
-  | TLSError Text             -- ^ TLS/SSL error
-  | DNSError Text             -- ^ DNS resolution failed
-  | UnknownNetworkError Text  -- ^ Other network error
+  = -- | Failed to establish connection
+    ConnectionError Text
+  | -- | Request timed out
+    TimeoutError Text
+  | -- | TLS/SSL error
+    TLSError Text
+  | -- | DNS resolution failed
+    DNSError Text
+  | -- | Other network error
+    UnknownNetworkError Text
   deriving (Eq, Show, Generic)
 
 instance Exception NetworkError
@@ -178,5 +198,6 @@ errorKindFromStatus (Status code _) = case code of
   429 -> RateLimitError
   500 -> ServerError
   529 -> OverloadedError
-  _ | code >= 500 -> ServerError
+  _
+    | code >= 500 -> ServerError
     | otherwise -> InvalidRequestError

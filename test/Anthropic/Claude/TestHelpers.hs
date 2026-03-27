@@ -21,92 +21,113 @@ module Anthropic.Claude.TestHelpers
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
-import Network.HTTP.Client.Internal (Response(..), ResponseClose(..), CookieJar(..))
+import Network.HTTP.Client.Internal (CookieJar (..), Response (..), ResponseClose (..))
 import Network.HTTP.Types.Header (ResponseHeaders)
 import Network.HTTP.Types.Status (mkStatus)
 import Network.HTTP.Types.Version (http11)
 
 -- | Construct a mock HTTP Response with the given status, headers, and body.
 mkMockResponse :: Int -> ResponseHeaders -> LBS.ByteString -> Response LBS.ByteString
-mkMockResponse code headers body = Response
-  { responseStatus = mkStatus code ""
-  , responseVersion = http11
-  , responseHeaders = headers
-  , responseBody = body
-  , responseCookieJar = CJ []
-  , responseClose' = ResponseClose (pure ())
-  , responseOriginalRequest = error "mock: responseOriginalRequest not available"
-  , responseEarlyHints = []
-  }
+mkMockResponse code headers body =
+  Response
+    { responseStatus = mkStatus code ""
+    , responseVersion = http11
+    , responseHeaders = headers
+    , responseBody = body
+    , responseCookieJar = CJ []
+    , responseClose' = ResponseClose (pure ())
+    , responseOriginalRequest = error "mock: responseOriginalRequest not available"
+    , responseEarlyHints = []
+    }
 
 -- | Construct a mock 200 response with optional rate limit headers.
 mockSuccess :: LBS.ByteString -> Response LBS.ByteString
-mockSuccess body = mkMockResponse 200
-  [ ("request-id", "req_mock_123")
-  , ("anthropic-ratelimit-requests-limit", "50")
-  , ("anthropic-ratelimit-requests-remaining", "49")
-  ] body
+mockSuccess body =
+  mkMockResponse
+    200
+    [ ("request-id", "req_mock_123")
+    , ("anthropic-ratelimit-requests-limit", "50")
+    , ("anthropic-ratelimit-requests-remaining", "49")
+    ]
+    body
 
 -- | Construct a mock error response.
 mockError :: Int -> String -> String -> Response LBS.ByteString
-mockError code errType errMsg = mkMockResponse code []
-  (Aeson.encode $ Aeson.object
-    [ "error" Aeson..= Aeson.object
-        [ "type" Aeson..= errType
-        , "message" Aeson..= errMsg
-        ]
-    ])
+mockError code errType errMsg =
+  mkMockResponse
+    code
+    []
+    ( Aeson.encode
+        $ Aeson.object
+          [ "error"
+              Aeson..= Aeson.object
+                [ "type" Aeson..= errType
+                , "message" Aeson..= errMsg
+                ]
+          ]
+    )
 
 -- | Sample successful MessageResponse JSON.
 sampleMessageResponseJson :: LBS.ByteString
-sampleMessageResponseJson = Aeson.encode $ Aeson.object
-  [ "id" Aeson..= ("msg_test_123" :: String)
-  , "type" Aeson..= ("message" :: String)
-  , "role" Aeson..= ("assistant" :: String)
-  , "content" Aeson..= [ Aeson.object
-      [ "type" Aeson..= ("text" :: String)
-      , "text" Aeson..= ("Hello! How can I help you?" :: String)
-      ]]
-  , "model" Aeson..= ("claude-sonnet-4-6" :: String)
-  , "stop_reason" Aeson..= ("end_turn" :: String)
-  , "usage" Aeson..= Aeson.object
-      [ "input_tokens" Aeson..= (15 :: Int)
-      , "output_tokens" Aeson..= (8 :: Int)
+sampleMessageResponseJson =
+  Aeson.encode
+    $ Aeson.object
+      [ "id" Aeson..= ("msg_test_123" :: String)
+      , "type" Aeson..= ("message" :: String)
+      , "role" Aeson..= ("assistant" :: String)
+      , "content"
+          Aeson..= [ Aeson.object
+                       [ "type" Aeson..= ("text" :: String)
+                       , "text" Aeson..= ("Hello! How can I help you?" :: String)
+                       ]
+                   ]
+      , "model" Aeson..= ("claude-sonnet-4-6" :: String)
+      , "stop_reason" Aeson..= ("end_turn" :: String)
+      , "usage"
+          Aeson..= Aeson.object
+            [ "input_tokens" Aeson..= (15 :: Int)
+            , "output_tokens" Aeson..= (8 :: Int)
+            ]
       ]
-  ]
 
 -- | Sample BatchResponse JSON (in_progress).
 sampleBatchResponseJson :: LBS.ByteString
-sampleBatchResponseJson = Aeson.encode $ Aeson.object
-  [ "id" Aeson..= ("batch_test_456" :: String)
-  , "type" Aeson..= ("message_batch" :: String)
-  , "processing_status" Aeson..= ("in_progress" :: String)
-  , "request_counts" Aeson..= Aeson.object
-      [ "processing" Aeson..= (5 :: Int)
-      , "succeeded" Aeson..= (0 :: Int)
-      , "errored" Aeson..= (0 :: Int)
-      , "canceled" Aeson..= (0 :: Int)
-      , "expired" Aeson..= (0 :: Int)
+sampleBatchResponseJson =
+  Aeson.encode
+    $ Aeson.object
+      [ "id" Aeson..= ("batch_test_456" :: String)
+      , "type" Aeson..= ("message_batch" :: String)
+      , "processing_status" Aeson..= ("in_progress" :: String)
+      , "request_counts"
+          Aeson..= Aeson.object
+            [ "processing" Aeson..= (5 :: Int)
+            , "succeeded" Aeson..= (0 :: Int)
+            , "errored" Aeson..= (0 :: Int)
+            , "canceled" Aeson..= (0 :: Int)
+            , "expired" Aeson..= (0 :: Int)
+            ]
+      , "created_at" Aeson..= ("2026-03-21T00:00:00Z" :: String)
       ]
-  , "created_at" Aeson..= ("2026-03-21T00:00:00Z" :: String)
-  ]
 
 -- | Sample BatchResponse JSON (ended).
 sampleBatchEndedJson :: LBS.ByteString
-sampleBatchEndedJson = Aeson.encode $ Aeson.object
-  [ "id" Aeson..= ("batch_test_456" :: String)
-  , "type" Aeson..= ("message_batch" :: String)
-  , "processing_status" Aeson..= ("ended" :: String)
-  , "request_counts" Aeson..= Aeson.object
-      [ "processing" Aeson..= (0 :: Int)
-      , "succeeded" Aeson..= (5 :: Int)
-      , "errored" Aeson..= (0 :: Int)
-      , "canceled" Aeson..= (0 :: Int)
-      , "expired" Aeson..= (0 :: Int)
+sampleBatchEndedJson =
+  Aeson.encode
+    $ Aeson.object
+      [ "id" Aeson..= ("batch_test_456" :: String)
+      , "type" Aeson..= ("message_batch" :: String)
+      , "processing_status" Aeson..= ("ended" :: String)
+      , "request_counts"
+          Aeson..= Aeson.object
+            [ "processing" Aeson..= (0 :: Int)
+            , "succeeded" Aeson..= (5 :: Int)
+            , "errored" Aeson..= (0 :: Int)
+            , "canceled" Aeson..= (0 :: Int)
+            , "expired" Aeson..= (0 :: Int)
+            ]
+      , "created_at" Aeson..= ("2026-03-21T00:00:00Z" :: String)
+      , "ended_at" Aeson..= ("2026-03-21T00:01:00Z" :: String)
       ]
-  , "created_at" Aeson..= ("2026-03-21T00:00:00Z" :: String)
-  , "ended_at" Aeson..= ("2026-03-21T00:01:00Z" :: String)
-  ]
 
 -- | Mock SSE lines for a complete streaming response.
 mockSSELines :: [BS.ByteString]

@@ -1,4 +1,4 @@
-{-|
+{- |
 Module      : Anthropic.Claude.Types
 Description : Re-exports all public type definitions
 Copyright   : (c) 2026 Geoffrey Noël
@@ -24,15 +24,15 @@ module Anthropic.Claude.Types
   , module Anthropic.Claude.Types.Logging
   ) where
 
-import Anthropic.Claude.Types.Core
-import Anthropic.Claude.Types.ContentBlock
-import Anthropic.Claude.Types.RateLimitInfo
-import Anthropic.Claude.Types.Error
+import Anthropic.Claude.Types.Batch
 import Anthropic.Claude.Types.Client
-import Anthropic.Claude.Types.Schema
+import Anthropic.Claude.Types.ContentBlock
+import Anthropic.Claude.Types.Core
+import Anthropic.Claude.Types.Error
+import Anthropic.Claude.Types.Logging
+import Anthropic.Claude.Types.Observability
+import Anthropic.Claude.Types.RateLimitInfo
 import Anthropic.Claude.Types.Request
 import Anthropic.Claude.Types.Response
+import Anthropic.Claude.Types.Schema
 import Anthropic.Claude.Types.Stream
-import Anthropic.Claude.Types.Batch
-import Anthropic.Claude.Types.Observability
-import Anthropic.Claude.Types.Logging

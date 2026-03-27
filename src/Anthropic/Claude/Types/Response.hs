@@ -14,9 +14,9 @@ rate limit metadata per ADR 0004.
 -}
 module Anthropic.Claude.Types.Response
   ( -- * Response Types
-    MessageResponse(..)
-  , Usage(..)
-  , APIResponse(..)
+    MessageResponse (..)
+  , Usage (..)
+  , APIResponse (..)
 
     -- * Helper Functions
   , extractText
@@ -25,8 +25,8 @@ module Anthropic.Claude.Types.Response
 
 import Anthropic.Claude.Internal.JSON
 import Anthropic.Claude.Types.ContentBlock
-import Anthropic.Claude.Types.RateLimitInfo (RateLimitInfo)
 import Anthropic.Claude.Types.Core
+import Anthropic.Claude.Types.RateLimitInfo (RateLimitInfo)
 import Control.Exception (Exception, throwIO)
 import Data.Aeson.KeyMap (toList)
 import Data.Text (Text)
@@ -39,7 +39,8 @@ data Usage = Usage
   , usageOutputTokens :: Int
   , usageCacheCreationInputTokens :: Maybe Int
   , usageCacheReadInputTokens :: Maybe Int
-  } deriving (Eq, Show, Generic)
+  }
+  deriving (Eq, Show, Generic)
 
 instance FromJSON Usage where
   parseJSON = genericParseJSON (prefixOptions "usage")
@@ -51,14 +52,17 @@ instance ToJSON Usage where
 -- | Response from the Messages API
 data MessageResponse = MessageResponse
   { responseId :: MessageId
-  , responseType :: Text                -- ^ Always "message"
-  , responseRole :: Role                -- ^ Always Assistant
+  , responseType :: Text
+  -- ^ Always "message"
+  , responseRole :: Role
+  -- ^ Always Assistant
   , responseContent :: [ContentBlock]
   , responseModel :: ModelId
   , responseStopReason :: Maybe StopReason
   , responseStopSequence :: Maybe Text
   , responseUsage :: Usage
-  } deriving (Eq, Show, Generic)
+  }
+  deriving (Eq, Show, Generic)
 
 instance FromJSON MessageResponse where
   parseJSON = genericParseJSON (prefixOptions "response")
@@ -77,7 +81,8 @@ data APIResponse a = APIResponse
   { apiResponseBody :: a
   , apiResponseRateLimitInfo :: Maybe RateLimitInfo
   , apiResponseRequestId :: Maybe RequestId
-  } deriving (Eq, Show, Generic)
+  }
+  deriving (Eq, Show, Generic)
 
 instance FromJSON a => FromJSON (APIResponse a) where
   parseJSON = withObject "APIResponse" $ \obj ->
@@ -87,12 +92,13 @@ instance FromJSON a => FromJSON (APIResponse a) where
       <*> obj .:? "request_id"
 
 instance ToJSON a => ToJSON (APIResponse a) where
-  toJSON (APIResponse body rateLimitInfo reqId) = object $
-    case toJSON body of
-      Object obj -> toList obj ++
-        [ "rate_limit_info" .= rateLimitInfo
-        , "request_id" .= reqId
-        ]
+  toJSON (APIResponse body rateLimitInfo reqId) = object
+    $ case toJSON body of
+      Object obj ->
+        toList obj
+          ++ [ "rate_limit_info" .= rateLimitInfo
+             , "request_id" .= reqId
+             ]
       _ -> []
 
 -- | Extract text content from a message response
@@ -106,8 +112,8 @@ instance ToJSON a => ToJSON (APIResponse a) where
 -- @
 extractText :: MessageResponse -> Text
 extractText response = T.intercalate "\n" texts
-  where
-    texts = [t | TextBlock t _ <- responseContent response]
+ where
+  texts = [t | TextBlock t _ <- responseContent response]
 
 -- | Unwrap APIResponse or throw exception
 --

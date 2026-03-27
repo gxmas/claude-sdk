@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 {- |
 Module      : Anthropic.Claude.Client
 Description : Client convenience functions and configuration
@@ -30,10 +28,10 @@ module Anthropic.Claude.Client
   , module Anthropic.Claude.Types.Client
   ) where
 
-import Anthropic.Claude.Internal.HTTP (mkClientEnv, defaultClientEnv)
+import Anthropic.Claude.Internal.HTTP (defaultClientEnv, mkClientEnv)
 import Anthropic.Claude.Internal.Retry (withRetryPolicy)
 import Anthropic.Claude.Types.Client
-import Anthropic.Claude.Types.Logging (Logger, LogSettings(..), defaultLogSettings)
+import Anthropic.Claude.Types.Logging (LogSettings (..), Logger, defaultLogSettings)
 import Anthropic.Claude.Types.Observability (EventHandler)
 
 -- | Set the event handler for observability.
@@ -48,7 +46,7 @@ import Anthropic.Claude.Types.Observability (EventHandler)
 -- env' <- withEventHandler handler <$> mkClientEnv key
 -- @
 withEventHandler :: EventHandler -> ClientEnv -> ClientEnv
-withEventHandler h env = env { clientEventHandler = Just h }
+withEventHandler h env = env {clientEventHandler = Just h}
 
 -- | Enable debug logging with the given logger.
 --
@@ -62,7 +60,7 @@ withEventHandler h env = env { clientEventHandler = Just h }
 -- env <- withLogger (stderrLogger LevelInfo) <$> mkClientEnv key
 -- @
 withLogger :: Logger -> ClientEnv -> ClientEnv
-withLogger l env = env { clientLogSettings = Just (defaultLogSettings l) }
+withLogger l env = env {clientLogSettings = Just (defaultLogSettings l)}
 
 -- | Set the maximum body size (in bytes) included in debug log output.
 --
@@ -74,5 +72,7 @@ withLogger l env = env { clientLogSettings = Just (defaultLogSettings l) }
 -- env <- withLogBodyLimit 8192 . withLogger debugLogger <$> mkClientEnv key
 -- @
 withLogBodyLimit :: Int -> ClientEnv -> ClientEnv
-withLogBodyLimit n env = env
-  { clientLogSettings = fmap (\s -> s { logBodyLimit = n }) (clientLogSettings env) }
+withLogBodyLimit n env =
+  env
+    { clientLogSettings = fmap (\s -> s {logBodyLimit = n}) (clientLogSettings env)
+    }

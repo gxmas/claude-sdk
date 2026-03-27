@@ -68,10 +68,10 @@ oneOfSchema
 -}
 module Anthropic.Claude.Types.Schema
   ( -- * Schema Types
-    SchemaType(..)
-  , TypeSpec(..)
-  , JsonSchema(..)
-  , Property(..)
+    SchemaType (..)
+  , TypeSpec (..)
+  , JsonSchema (..)
+  , Property (..)
 
     -- * Empty Schema
   , emptySchema
@@ -150,24 +150,24 @@ data SchemaType
 
 instance ToJSON SchemaType where
   toJSON = \case
-    StringType  -> "string"
-    NumberType  -> "number"
+    StringType -> "string"
+    NumberType -> "number"
     IntegerType -> "integer"
     BooleanType -> "boolean"
-    ArrayType   -> "array"
-    ObjectType  -> "object"
-    NullType    -> "null"
+    ArrayType -> "array"
+    ObjectType -> "object"
+    NullType -> "null"
 
 instance FromJSON SchemaType where
   parseJSON = withText "SchemaType" $ \case
-    "string"  -> pure StringType
-    "number"  -> pure NumberType
+    "string" -> pure StringType
+    "number" -> pure NumberType
     "integer" -> pure IntegerType
     "boolean" -> pure BooleanType
-    "array"   -> pure ArrayType
-    "object"  -> pure ObjectType
-    "null"    -> pure NullType
-    other     -> fail $ "Unknown SchemaType: " <> T.unpack other
+    "array" -> pure ArrayType
+    "object" -> pure ObjectType
+    "null" -> pure NullType
+    other -> fail $ "Unknown SchemaType: " <> T.unpack other
 
 -- | Type specification: single type or union of types
 --
@@ -188,8 +188,8 @@ instance ToJSON TypeSpec where
 
 instance FromJSON TypeSpec where
   parseJSON v@(String _) = SingleType <$> parseJSON v
-  parseJSON v@(Array _)  = UnionType <$> parseJSON v
-  parseJSON _            = fail "TypeSpec: expected string or array of strings"
+  parseJSON v@(Array _) = UnionType <$> parseJSON v
+  parseJSON _ = fail "TypeSpec: expected string or array of strings"
 
 -- | JSON Schema definition
 --
@@ -197,133 +197,167 @@ instance FromJSON TypeSpec where
 -- All fields are optional; use combinators to build schemas incrementally.
 data JsonSchema = JsonSchema
   { -- Type
-    schemaType                 :: Maybe TypeSpec
-    -- Annotations
-  , schemaTitle                :: Maybe Text
-  , schemaDescription          :: Maybe Text
-  , schemaDefault              :: Maybe Value
-  , schemaExamples             :: Maybe [Value]
-  , schemaDeprecated           :: Maybe Bool
-  , schemaReadOnly             :: Maybe Bool
-  , schemaWriteOnly            :: Maybe Bool
-    -- Validation
-  , schemaEnum                 :: Maybe [Value]
-  , schemaConst                :: Maybe Value
-    -- Object
-  , schemaProperties           :: Maybe (Map Text JsonSchema)
-  , schemaRequired             :: Maybe [Text]
+    schemaType :: Maybe TypeSpec
+  , -- Annotations
+    schemaTitle :: Maybe Text
+  , schemaDescription :: Maybe Text
+  , schemaDefault :: Maybe Value
+  , schemaExamples :: Maybe [Value]
+  , schemaDeprecated :: Maybe Bool
+  , schemaReadOnly :: Maybe Bool
+  , schemaWriteOnly :: Maybe Bool
+  , -- Validation
+    schemaEnum :: Maybe [Value]
+  , schemaConst :: Maybe Value
+  , -- Object
+    schemaProperties :: Maybe (Map Text JsonSchema)
+  , schemaRequired :: Maybe [Text]
   , schemaAdditionalProperties :: Maybe Value
-    -- Array
-  , schemaItems                :: Maybe JsonSchema
-  , schemaMinItems             :: Maybe Int
-  , schemaMaxItems             :: Maybe Int
-  , schemaUniqueItems          :: Maybe Bool
-    -- Number
-  , schemaMinimum              :: Maybe Scientific
-  , schemaMaximum              :: Maybe Scientific
-  , schemaExclusiveMinimum     :: Maybe Scientific
-  , schemaExclusiveMaximum     :: Maybe Scientific
-  , schemaMultipleOf           :: Maybe Scientific
-    -- String
-  , schemaMinLength            :: Maybe Int
-  , schemaMaxLength            :: Maybe Int
-  , schemaPattern              :: Maybe Text
-  , schemaFormat               :: Maybe Text
-    -- Composition
-  , schemaOneOf                :: Maybe [JsonSchema]
-  , schemaAnyOf                :: Maybe [JsonSchema]
-  , schemaAllOf                :: Maybe [JsonSchema]
-  , schemaNot                  :: Maybe JsonSchema
-    -- References
-  , schemaRef                  :: Maybe Text
-  , schemaDefs                 :: Maybe (Map Text JsonSchema)
-  } deriving (Eq, Show)
+  , -- Array
+    schemaItems :: Maybe JsonSchema
+  , schemaMinItems :: Maybe Int
+  , schemaMaxItems :: Maybe Int
+  , schemaUniqueItems :: Maybe Bool
+  , -- Number
+    schemaMinimum :: Maybe Scientific
+  , schemaMaximum :: Maybe Scientific
+  , schemaExclusiveMinimum :: Maybe Scientific
+  , schemaExclusiveMaximum :: Maybe Scientific
+  , schemaMultipleOf :: Maybe Scientific
+  , -- String
+    schemaMinLength :: Maybe Int
+  , schemaMaxLength :: Maybe Int
+  , schemaPattern :: Maybe Text
+  , schemaFormat :: Maybe Text
+  , -- Composition
+    schemaOneOf :: Maybe [JsonSchema]
+  , schemaAnyOf :: Maybe [JsonSchema]
+  , schemaAllOf :: Maybe [JsonSchema]
+  , schemaNot :: Maybe JsonSchema
+  , -- References
+    schemaRef :: Maybe Text
+  , schemaDefs :: Maybe (Map Text JsonSchema)
+  }
+  deriving (Eq, Show)
 
 instance ToJSON JsonSchema where
-  toJSON s = object $ catMaybes
-    [ ("type" .=)                 <$> schemaType s
-    , ("title" .=)                <$> schemaTitle s
-    , ("description" .=)          <$> schemaDescription s
-    , ("default" .=)              <$> schemaDefault s
-    , ("examples" .=)             <$> schemaExamples s
-    , ("deprecated" .=)           <$> schemaDeprecated s
-    , ("readOnly" .=)             <$> schemaReadOnly s
-    , ("writeOnly" .=)            <$> schemaWriteOnly s
-    , ("enum" .=)                 <$> schemaEnum s
-    , ("const" .=)                <$> schemaConst s
-    , ("properties" .=)           <$> schemaProperties s
-    , ("required" .=)             <$> schemaRequired s
-    , ("additionalProperties" .=) <$> schemaAdditionalProperties s
-    , ("items" .=)                <$> schemaItems s
-    , ("minItems" .=)             <$> schemaMinItems s
-    , ("maxItems" .=)             <$> schemaMaxItems s
-    , ("uniqueItems" .=)          <$> schemaUniqueItems s
-    , ("minimum" .=)              <$> schemaMinimum s
-    , ("maximum" .=)              <$> schemaMaximum s
-    , ("exclusiveMinimum" .=)     <$> schemaExclusiveMinimum s
-    , ("exclusiveMaximum" .=)     <$> schemaExclusiveMaximum s
-    , ("multipleOf" .=)           <$> schemaMultipleOf s
-    , ("minLength" .=)            <$> schemaMinLength s
-    , ("maxLength" .=)            <$> schemaMaxLength s
-    , ("pattern" .=)              <$> schemaPattern s
-    , ("format" .=)               <$> schemaFormat s
-    , ("oneOf" .=)                <$> schemaOneOf s
-    , ("anyOf" .=)                <$> schemaAnyOf s
-    , ("allOf" .=)                <$> schemaAllOf s
-    , ("not" .=)                  <$> schemaNot s
-    , ("$ref" .=)                 <$> schemaRef s
-    , ("$defs" .=)                <$> schemaDefs s
-    ]
+  toJSON s =
+    object
+      $ catMaybes
+        [ ("type" .=) <$> schemaType s
+        , ("title" .=) <$> schemaTitle s
+        , ("description" .=) <$> schemaDescription s
+        , ("default" .=) <$> schemaDefault s
+        , ("examples" .=) <$> schemaExamples s
+        , ("deprecated" .=) <$> schemaDeprecated s
+        , ("readOnly" .=) <$> schemaReadOnly s
+        , ("writeOnly" .=) <$> schemaWriteOnly s
+        , ("enum" .=) <$> schemaEnum s
+        , ("const" .=) <$> schemaConst s
+        , ("properties" .=) <$> schemaProperties s
+        , ("required" .=) <$> schemaRequired s
+        , ("additionalProperties" .=) <$> schemaAdditionalProperties s
+        , ("items" .=) <$> schemaItems s
+        , ("minItems" .=) <$> schemaMinItems s
+        , ("maxItems" .=) <$> schemaMaxItems s
+        , ("uniqueItems" .=) <$> schemaUniqueItems s
+        , ("minimum" .=) <$> schemaMinimum s
+        , ("maximum" .=) <$> schemaMaximum s
+        , ("exclusiveMinimum" .=) <$> schemaExclusiveMinimum s
+        , ("exclusiveMaximum" .=) <$> schemaExclusiveMaximum s
+        , ("multipleOf" .=) <$> schemaMultipleOf s
+        , ("minLength" .=) <$> schemaMinLength s
+        , ("maxLength" .=) <$> schemaMaxLength s
+        , ("pattern" .=) <$> schemaPattern s
+        , ("format" .=) <$> schemaFormat s
+        , ("oneOf" .=) <$> schemaOneOf s
+        , ("anyOf" .=) <$> schemaAnyOf s
+        , ("allOf" .=) <$> schemaAllOf s
+        , ("not" .=) <$> schemaNot s
+        , ("$ref" .=) <$> schemaRef s
+        , ("$defs" .=) <$> schemaDefs s
+        ]
 
 instance FromJSON JsonSchema where
-  parseJSON = withObject "JsonSchema" $ \o -> JsonSchema
-    <$> o .:? "type"
-    <*> o .:? "title"
-    <*> o .:? "description"
-    <*> o .:? "default"
-    <*> o .:? "examples"
-    <*> o .:? "deprecated"
-    <*> o .:? "readOnly"
-    <*> o .:? "writeOnly"
-    <*> o .:? "enum"
-    <*> o .:? "const"
-    <*> o .:? "properties"
-    <*> o .:? "required"
-    <*> o .:? "additionalProperties"
-    <*> o .:? "items"
-    <*> o .:? "minItems"
-    <*> o .:? "maxItems"
-    <*> o .:? "uniqueItems"
-    <*> o .:? "minimum"
-    <*> o .:? "maximum"
-    <*> o .:? "exclusiveMinimum"
-    <*> o .:? "exclusiveMaximum"
-    <*> o .:? "multipleOf"
-    <*> o .:? "minLength"
-    <*> o .:? "maxLength"
-    <*> o .:? "pattern"
-    <*> o .:? "format"
-    <*> o .:? "oneOf"
-    <*> o .:? "anyOf"
-    <*> o .:? "allOf"
-    <*> o .:? "not"
-    <*> o .:? "$ref"
-    <*> o .:? "$defs"
+  parseJSON = withObject "JsonSchema" $ \o ->
+    JsonSchema
+      <$> o .:? "type"
+      <*> o .:? "title"
+      <*> o .:? "description"
+      <*> o .:? "default"
+      <*> o .:? "examples"
+      <*> o .:? "deprecated"
+      <*> o .:? "readOnly"
+      <*> o .:? "writeOnly"
+      <*> o .:? "enum"
+      <*> o .:? "const"
+      <*> o .:? "properties"
+      <*> o .:? "required"
+      <*> o .:? "additionalProperties"
+      <*> o .:? "items"
+      <*> o .:? "minItems"
+      <*> o .:? "maxItems"
+      <*> o .:? "uniqueItems"
+      <*> o .:? "minimum"
+      <*> o .:? "maximum"
+      <*> o .:? "exclusiveMinimum"
+      <*> o .:? "exclusiveMaximum"
+      <*> o .:? "multipleOf"
+      <*> o .:? "minLength"
+      <*> o .:? "maxLength"
+      <*> o .:? "pattern"
+      <*> o .:? "format"
+      <*> o .:? "oneOf"
+      <*> o .:? "anyOf"
+      <*> o .:? "allOf"
+      <*> o .:? "not"
+      <*> o .:? "$ref"
+      <*> o .:? "$defs"
 
 -- | Property in an object schema
 data Property = Property
-  { propertyName       :: Text
-  , propertySchema     :: JsonSchema
+  { propertyName :: Text
+  , propertySchema :: JsonSchema
   , propertyIsRequired :: Bool
-  } deriving (Eq, Show)
+  }
+  deriving (Eq, Show)
 
 -- | A schema with all fields set to 'Nothing'
 emptySchema :: JsonSchema
-emptySchema = JsonSchema
-  Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-  Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-  Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
-  Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+emptySchema =
+  JsonSchema
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
+    Nothing
 
 -- --------------------------------------------------------------------------
 -- Primitive Schemas
@@ -331,23 +365,23 @@ emptySchema = JsonSchema
 
 -- | @{ "type": "string" }@
 stringSchema :: JsonSchema
-stringSchema = emptySchema { schemaType = Just (SingleType StringType) }
+stringSchema = emptySchema {schemaType = Just (SingleType StringType)}
 
 -- | @{ "type": "number" }@
 numberSchema :: JsonSchema
-numberSchema = emptySchema { schemaType = Just (SingleType NumberType) }
+numberSchema = emptySchema {schemaType = Just (SingleType NumberType)}
 
 -- | @{ "type": "integer" }@
 integerSchema :: JsonSchema
-integerSchema = emptySchema { schemaType = Just (SingleType IntegerType) }
+integerSchema = emptySchema {schemaType = Just (SingleType IntegerType)}
 
 -- | @{ "type": "boolean" }@
 booleanSchema :: JsonSchema
-booleanSchema = emptySchema { schemaType = Just (SingleType BooleanType) }
+booleanSchema = emptySchema {schemaType = Just (SingleType BooleanType)}
 
 -- | @{ "type": "null" }@
 nullSchema :: JsonSchema
-nullSchema = emptySchema { schemaType = Just (SingleType NullType) }
+nullSchema = emptySchema {schemaType = Just (SingleType NullType)}
 
 -- --------------------------------------------------------------------------
 -- Composite Schemas
@@ -363,21 +397,25 @@ nullSchema = emptySchema { schemaType = Just (SingleType NullType) }
 -- -- { "type": "object", "properties": {...}, "required": ["name"] }
 -- @
 objectSchema :: [Property] -> JsonSchema
-objectSchema props = emptySchema
-  { schemaType = Just (SingleType ObjectType)
-  , schemaProperties = Just $ Map.fromList
-      [(propertyName p, propertySchema p) | p <- props]
-  , schemaRequired = case [propertyName p | p <- props, propertyIsRequired p] of
-      [] -> Nothing
-      rs -> Just rs
-  }
+objectSchema props =
+  emptySchema
+    { schemaType = Just (SingleType ObjectType)
+    , schemaProperties =
+        Just
+          $ Map.fromList
+            [(propertyName p, propertySchema p) | p <- props]
+    , schemaRequired = case [propertyName p | p <- props, propertyIsRequired p] of
+        [] -> Nothing
+        rs -> Just rs
+    }
 
 -- | @{ "type": "array", "items": ... }@
 arraySchema :: JsonSchema -> JsonSchema
-arraySchema items = emptySchema
-  { schemaType = Just (SingleType ArrayType)
-  , schemaItems = Just items
-  }
+arraySchema items =
+  emptySchema
+    { schemaType = Just (SingleType ArrayType)
+    , schemaItems = Just items
+    }
 
 -- | Make a schema nullable by adding @"null"@ to the type union.
 --
@@ -387,33 +425,33 @@ arraySchema items = emptySchema
 -- @
 nullableSchema :: JsonSchema -> JsonSchema
 nullableSchema s = case schemaType s of
-  Just (SingleType t) -> s { schemaType = Just (UnionType [t, NullType]) }
-  Just (UnionType ts) -> s { schemaType = Just (UnionType (ts ++ [NullType])) }
-  Nothing             -> s { schemaType = Just (SingleType NullType) }
+  Just (SingleType t) -> s {schemaType = Just (UnionType [t, NullType])}
+  Just (UnionType ts) -> s {schemaType = Just (UnionType (ts ++ [NullType]))}
+  Nothing -> s {schemaType = Just (SingleType NullType)}
 
 -- | @{ "enum": [...] }@
 enumSchema :: [Value] -> JsonSchema
-enumSchema vals = emptySchema { schemaEnum = Just vals }
+enumSchema vals = emptySchema {schemaEnum = Just vals}
 
 -- | @{ "oneOf": [...] }@
 oneOfSchema :: [JsonSchema] -> JsonSchema
-oneOfSchema schemas = emptySchema { schemaOneOf = Just schemas }
+oneOfSchema schemas = emptySchema {schemaOneOf = Just schemas}
 
 -- | @{ "anyOf": [...] }@
 anyOfSchema :: [JsonSchema] -> JsonSchema
-anyOfSchema schemas = emptySchema { schemaAnyOf = Just schemas }
+anyOfSchema schemas = emptySchema {schemaAnyOf = Just schemas}
 
 -- | @{ "allOf": [...] }@
 allOfSchema :: [JsonSchema] -> JsonSchema
-allOfSchema schemas = emptySchema { schemaAllOf = Just schemas }
+allOfSchema schemas = emptySchema {schemaAllOf = Just schemas}
 
 -- | @{ "not": ... }@
 notSchema :: JsonSchema -> JsonSchema
-notSchema s = emptySchema { schemaNot = Just s }
+notSchema s = emptySchema {schemaNot = Just s}
 
 -- | @{ "$ref": "..." }@
 refSchema :: Text -> JsonSchema
-refSchema ref = emptySchema { schemaRef = Just ref }
+refSchema ref = emptySchema {schemaRef = Just ref}
 
 -- --------------------------------------------------------------------------
 -- Property Constructors
@@ -433,19 +471,19 @@ optional name s = Property name s False
 
 -- | Set the @description@ field
 withDescription :: Text -> JsonSchema -> JsonSchema
-withDescription desc s = s { schemaDescription = Just desc }
+withDescription desc s = s {schemaDescription = Just desc}
 
 -- | Set the @title@ field
 withTitle :: Text -> JsonSchema -> JsonSchema
-withTitle t s = s { schemaTitle = Just t }
+withTitle t s = s {schemaTitle = Just t}
 
 -- | Set the @default@ field
 withDefault :: Value -> JsonSchema -> JsonSchema
-withDefault val s = s { schemaDefault = Just val }
+withDefault val s = s {schemaDefault = Just val}
 
 -- | Set the @examples@ field
 withExamples :: [Value] -> JsonSchema -> JsonSchema
-withExamples es s = s { schemaExamples = Just es }
+withExamples es s = s {schemaExamples = Just es}
 
 -- --------------------------------------------------------------------------
 -- Validation Modifiers
@@ -453,11 +491,11 @@ withExamples es s = s { schemaExamples = Just es }
 
 -- | Set the @const@ field
 withConst :: Value -> JsonSchema -> JsonSchema
-withConst val s = s { schemaConst = Just val }
+withConst val s = s {schemaConst = Just val}
 
 -- | Set the @format@ field (e.g., "email", "date-time", "uri")
 withFormat :: Text -> JsonSchema -> JsonSchema
-withFormat f s = s { schemaFormat = Just f }
+withFormat f s = s {schemaFormat = Just f}
 
 -- --------------------------------------------------------------------------
 -- Number Constraints
@@ -465,23 +503,23 @@ withFormat f s = s { schemaFormat = Just f }
 
 -- | Set @minimum@
 withMinimum :: Scientific -> JsonSchema -> JsonSchema
-withMinimum n s = s { schemaMinimum = Just n }
+withMinimum n s = s {schemaMinimum = Just n}
 
 -- | Set @maximum@
 withMaximum :: Scientific -> JsonSchema -> JsonSchema
-withMaximum n s = s { schemaMaximum = Just n }
+withMaximum n s = s {schemaMaximum = Just n}
 
 -- | Set @exclusiveMinimum@
 withExclusiveMinimum :: Scientific -> JsonSchema -> JsonSchema
-withExclusiveMinimum n s = s { schemaExclusiveMinimum = Just n }
+withExclusiveMinimum n s = s {schemaExclusiveMinimum = Just n}
 
 -- | Set @exclusiveMaximum@
 withExclusiveMaximum :: Scientific -> JsonSchema -> JsonSchema
-withExclusiveMaximum n s = s { schemaExclusiveMaximum = Just n }
+withExclusiveMaximum n s = s {schemaExclusiveMaximum = Just n}
 
 -- | Set @multipleOf@
 withMultipleOf :: Scientific -> JsonSchema -> JsonSchema
-withMultipleOf n s = s { schemaMultipleOf = Just n }
+withMultipleOf n s = s {schemaMultipleOf = Just n}
 
 -- --------------------------------------------------------------------------
 -- String Constraints
@@ -489,15 +527,15 @@ withMultipleOf n s = s { schemaMultipleOf = Just n }
 
 -- | Set @minLength@
 withMinLength :: Int -> JsonSchema -> JsonSchema
-withMinLength n s = s { schemaMinLength = Just n }
+withMinLength n s = s {schemaMinLength = Just n}
 
 -- | Set @maxLength@
 withMaxLength :: Int -> JsonSchema -> JsonSchema
-withMaxLength n s = s { schemaMaxLength = Just n }
+withMaxLength n s = s {schemaMaxLength = Just n}
 
 -- | Set @pattern@ (regex)
 withPattern :: Text -> JsonSchema -> JsonSchema
-withPattern p s = s { schemaPattern = Just p }
+withPattern p s = s {schemaPattern = Just p}
 
 -- --------------------------------------------------------------------------
 -- Array Constraints
@@ -505,15 +543,15 @@ withPattern p s = s { schemaPattern = Just p }
 
 -- | Set @minItems@
 withMinItems :: Int -> JsonSchema -> JsonSchema
-withMinItems n s = s { schemaMinItems = Just n }
+withMinItems n s = s {schemaMinItems = Just n}
 
 -- | Set @maxItems@
 withMaxItems :: Int -> JsonSchema -> JsonSchema
-withMaxItems n s = s { schemaMaxItems = Just n }
+withMaxItems n s = s {schemaMaxItems = Just n}
 
 -- | Set @uniqueItems@ to @true@
 withUniqueItems :: JsonSchema -> JsonSchema
-withUniqueItems s = s { schemaUniqueItems = Just True }
+withUniqueItems s = s {schemaUniqueItems = Just True}
 
 -- --------------------------------------------------------------------------
 -- Reference / Definitions
@@ -521,4 +559,4 @@ withUniqueItems s = s { schemaUniqueItems = Just True }
 
 -- | Set @$defs@ (schema definitions for use with @$ref@)
 withDefs :: Map Text JsonSchema -> JsonSchema -> JsonSchema
-withDefs defs s = s { schemaDefs = Just defs }
+withDefs defs s = s {schemaDefs = Just defs}

@@ -12,33 +12,35 @@ import Test.QuickCheck
 -- QuickCheck Generators
 
 instance Arbitrary BackoffStrategy where
-  arbitrary = oneof
-    [ ExponentialBackoff <$> genDelay <*> genDelay
-    , ConstantBackoff <$> genDelay
-    , pure NoBackoff
-    ]
-    where
-      genDelay = fromIntegral <$> choose (1, 300 :: Int)
+  arbitrary =
+    oneof
+      [ ExponentialBackoff <$> genDelay <*> genDelay
+      , ConstantBackoff <$> genDelay
+      , pure NoBackoff
+      ]
+   where
+    genDelay = fromIntegral <$> choose (1, 300 :: Int)
 
 instance Arbitrary RetryPolicy where
-  arbitrary = RetryPolicy
-    <$> choose (0, 10)
-    <*> arbitrary
+  arbitrary =
+    RetryPolicy
+      <$> choose (0, 10)
+      <*> arbitrary
 
 instance Arbitrary RateLimitInfo where
-  arbitrary = RateLimitInfo
-    <$> arbitrary
-    <*> arbitrary
-    <*> arbitrary
-    <*> arbitrary
-    <*> arbitrary
-    <*> arbitrary
+  arbitrary =
+    RateLimitInfo
+      <$> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
+      <*> arbitrary
 
 -- Test Suite
 
 spec :: Spec
 spec = describe "Types.Client" $ do
-
   describe "BackoffStrategy" $ do
     it "parses ExponentialBackoff from JSON" $ do
       let json = "{\"type\":\"exponential\",\"base\":1.0,\"max\":60.0}"
@@ -64,8 +66,9 @@ spec = describe "Types.Client" $ do
         Just (ExponentialBackoff _ _) -> pure ()
         _ -> expectationFailure "Failed to encode ExponentialBackoff"
 
-    it "round-trips through JSON" $ property $
-      \(strategy :: BackoffStrategy) -> decode (encode strategy) === Just strategy
+    it "round-trips through JSON"
+      $ property
+      $ \(strategy :: BackoffStrategy) -> decode (encode strategy) === Just strategy
 
   describe "RetryPolicy" $ do
     it "parses from JSON with snake_case fields" $ do
@@ -74,31 +77,32 @@ spec = describe "Types.Client" $ do
         Just (RetryPolicy maxAttempts _) -> maxAttempts `shouldBe` 3
         _ -> expectationFailure "Failed to parse RetryPolicy"
 
-    it "round-trips through JSON" $ property $
-      \(policy :: RetryPolicy) -> decode (encode policy) === Just policy
+    it "round-trips through JSON"
+      $ property
+      $ \(policy :: RetryPolicy) -> decode (encode policy) === Just policy
 
   describe "RetryPolicy Presets" $ do
-    it "defaultRetryPolicy has 3 max attempts" $
-      retryMaxAttempts defaultRetryPolicy `shouldBe` 3
+    it "defaultRetryPolicy has 3 max attempts"
+      $ retryMaxAttempts defaultRetryPolicy `shouldBe` 3
 
-    it "defaultRetryPolicy uses exponential backoff" $
-      case retryStrategy defaultRetryPolicy of
+    it "defaultRetryPolicy uses exponential backoff"
+      $ case retryStrategy defaultRetryPolicy of
         ExponentialBackoff base maxDelay -> do
           base `shouldBe` 1.0
           maxDelay `shouldBe` 60.0
         _ -> expectationFailure "defaultRetryPolicy should use ExponentialBackoff"
 
-    it "noRetries has 0 max attempts" $
-      retryMaxAttempts noRetries `shouldBe` 0
+    it "noRetries has 0 max attempts"
+      $ retryMaxAttempts noRetries `shouldBe` 0
 
-    it "noRetries uses NoBackoff" $
-      retryStrategy noRetries `shouldBe` NoBackoff
+    it "noRetries uses NoBackoff"
+      $ retryStrategy noRetries `shouldBe` NoBackoff
 
-    it "aggressiveRetryPolicy has 5 max attempts" $
-      retryMaxAttempts aggressiveRetryPolicy `shouldBe` 5
+    it "aggressiveRetryPolicy has 5 max attempts"
+      $ retryMaxAttempts aggressiveRetryPolicy `shouldBe` 5
 
-    it "aggressiveRetryPolicy uses exponential backoff" $
-      case retryStrategy aggressiveRetryPolicy of
+    it "aggressiveRetryPolicy uses exponential backoff"
+      $ case retryStrategy aggressiveRetryPolicy of
         ExponentialBackoff base maxDelay -> do
           base `shouldBe` 0.5
           maxDelay `shouldBe` 120.0
@@ -121,8 +125,9 @@ spec = describe "Types.Client" $ do
       let json = "{}"
       decode json `shouldBe` Just (RateLimitInfo Nothing Nothing Nothing Nothing Nothing Nothing)
 
-    it "round-trips through JSON" $ property $
-      \(info :: RateLimitInfo) -> decode (encode info) === Just info
+    it "round-trips through JSON"
+      $ property
+      $ \(info :: RateLimitInfo) -> decode (encode info) === Just info
 
     it "uses correct field names (no prefix)" $ do
       let info = RateLimitInfo (Just 50) (Just 40000) Nothing Nothing Nothing Nothing

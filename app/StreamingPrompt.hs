@@ -8,9 +8,9 @@ streams the response token-by-token, then prints usage stats.
 -}
 module Main (main) where
 
-import Anthropic.Claude.Types
-import Anthropic.Claude.Streaming
 import Anthropic.Claude.Internal.HTTP
+import Anthropic.Claude.Streaming
+import Anthropic.Claude.Types
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import System.Environment (lookupEnv)

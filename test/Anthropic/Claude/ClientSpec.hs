@@ -10,7 +10,6 @@ import UnliftIO (liftIO)
 
 spec :: Spec
 spec = describe "Client" $ do
-
   describe "Retry Policy Presets" $ do
     it "defaultRetryPolicy has correct configuration" $ do
       retryMaxAttempts defaultRetryPolicy `shouldBe` 3
@@ -36,14 +35,15 @@ spec = describe "Client" $ do
     it "modifies client environment retry policy" $ do
       let originalPolicy = defaultRetryPolicy
           customPolicy = noRetries
-          mockEnv = ClientEnv
-            { clientApiKey = ApiKey "test-key"
-            , clientRetryPolicy = originalPolicy
-            , clientBaseUrl = "https://api.anthropic.com"
-            , clientManager = undefined
-            , clientEventHandler = Nothing
-            , clientLogSettings = Nothing
-            }
+          mockEnv =
+            ClientEnv
+              { clientApiKey = ApiKey "test-key"
+              , clientRetryPolicy = originalPolicy
+              , clientBaseUrl = "https://api.anthropic.com"
+              , clientManager = undefined
+              , clientEventHandler = Nothing
+              , clientLogSettings = Nothing
+              }
 
       let action env = do
             liftIO $ clientRetryPolicy env `shouldBe` customPolicy

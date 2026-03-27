@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 
 {- |
@@ -29,7 +28,7 @@ module Anthropic.Claude.Streaming
   , throwOnError
 
     -- * Exceptions
-  , StreamException(..)
+  , StreamException (..)
   ) where
 
 import Anthropic.Claude.Internal.Streaming
@@ -40,9 +39,9 @@ import Anthropic.Claude.Types.Response
 import Anthropic.Claude.Types.Stream
 import Control.Exception (Exception, throwIO)
 import qualified Network.HTTP.Client as HTTP
-import Streaming (Stream, Of)
+import Streaming (Of, Stream)
 import qualified Streaming.Prelude as S
-import UnliftIO (MonadUnliftIO, MonadIO, liftIO, bracket)
+import UnliftIO (MonadIO, MonadUnliftIO, bracket, liftIO)
 
 -- | Execute a streaming request with automatic resource cleanup.
 --
@@ -97,9 +96,9 @@ forEachEvent
 forEachEvent env req handler =
   withMessageStream env req $ \stream ->
     S.mapM_ handleItem stream
-  where
-    handleItem (Right evt) = handler evt
-    handleItem (Left _)    = pure ()  -- errors are silently skipped
+ where
+  handleItem (Right evt) = handler evt
+  handleItem (Left _) = pure () -- errors are silently skipped
 
 -- | Convert a stream of @Either e a@ into a stream of @a@,
 -- throwing the first 'Left' as an exception.
@@ -120,10 +119,10 @@ throwOnError
   -> Stream (Of StreamEvent) m r
 throwOnError = S.mapM $ \case
   Right evt -> pure evt
-  Left err  -> liftIO $ throwIO (StreamException err)
+  Left err -> liftIO $ throwIO (StreamException err)
 
 -- | Wrapper to make APIError throwable from 'throwOnError'.
 newtype StreamException = StreamException APIError
-  deriving (Show)
+  deriving Show
 
 instance Exception StreamException
