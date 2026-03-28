@@ -13,14 +13,15 @@ a single piece of content in a message (text, image, tool use, or tool result).
 
 This module contains:
 
-* 'ContentBlock' and its 5 constructors (TextBlock, ImageBlock, ToolUseBlock, ToolResultBlock, ThinkingBlock)
-* Direct dependencies of ContentBlock (CacheControl, ImageSource, ToolResultContent, ToolUseInput)
+* 'ContentBlock' and its 6 constructors (TextBlock, ImageBlock, DocumentBlock, ToolUseBlock, ToolResultBlock, ThinkingBlock)
+* Direct dependencies of ContentBlock (CacheControl, ImageSource, DocumentSource, ToolResultContent, ToolUseInput)
 * Helper constructors and combinators
 -}
 module Anthropic.Claude.Types.ContentBlock
   ( -- * Content Types
     ContentBlock (..)
   , ImageSource (..)
+  , DocumentSource (..)
   , CacheControl (..)
   , ToolResultContent (..)
   , ToolUseInput (..)
@@ -32,6 +33,8 @@ module Anthropic.Claude.Types.ContentBlock
   , toolResultText
   , toolResultBlocks
   , thinkingBlock
+  , documentBlock
+  , documentBlockUrl
 
     -- * Cache Control Helpers
   , withCacheControl
@@ -104,6 +107,58 @@ instance ToJSON ImageSource where
       , "url" .= url
       ]
 
+-- | Document source for PDF and other document types
+--
+-- Documents can be provided as base64-encoded data, URLs, or file references
+data DocumentSource
+  = DocBase64Source
+      { docMediaType :: Text
+      -- ^ MIME type (e.g., "application/pdf")
+      , docData :: Text
+      -- ^ Base64-encoded document data
+      }
+  | DocURLSource
+      { docUrl :: Text
+      -- ^ URL to document (must be accessible)
+      }
+  | DocFileSource
+      { docFileId :: Text
+      -- ^ File ID from the Files API
+      }
+  deriving (Eq, Show, Generic)
+
+instance FromJSON DocumentSource where
+  parseJSON = withDiscriminator "type" $ \typeField obj -> case typeField of
+    "base64" ->
+      DocBase64Source
+        <$> obj .: "media_type"
+        <*> obj .: "data"
+    "url" ->
+      DocURLSource
+        <$> obj .: "url"
+    "file" ->
+      DocFileSource
+        <$> obj .: "file_id"
+    other -> fail $ "Unknown DocumentSource type: " <> T.unpack other
+
+instance ToJSON DocumentSource where
+  toJSON (DocBase64Source mediaType docData') =
+    object
+      [ "type" .= ("base64" :: Text)
+      , "media_type" .= mediaType
+      , "data" .= docData'
+      ]
+  toJSON (DocURLSource url) =
+    object
+      [ "type" .= ("url" :: Text)
+      , "url" .= url
+      ]
+  toJSON (DocFileSource fileId) =
+    object
+      [ "type" .= ("file" :: Text)
+      , "file_id" .= fileId
+      ]
+
 -- | Tool result content
 --
 -- Per the Anthropic API spec, tool_result content must be either:
@@ -158,6 +213,7 @@ instance ToJSON ToolUseInput where
 -- * 'ToolUseBlock' - Request to use a tool (in assistant messages)
 -- * 'ToolResultBlock' - Tool execution result (in user messages)
 -- * 'ThinkingBlock' - Chain-of-thought reasoning (when extended thinking is enabled)
+-- * 'DocumentBlock' - PDF or other document (base64, URL, or file reference)
 data ContentBlock
   = TextBlock
       { blockText :: Text
@@ -168,6 +224,12 @@ data ContentBlock
   | ImageBlock
       { blockSource :: ImageSource
       -- ^ Image source (base64 or URL)
+      , blockCacheControl :: Maybe CacheControl
+      -- ^ Cache control for prompt caching
+      }
+  | DocumentBlock
+      { blockDocSource :: DocumentSource
+      -- ^ Document source (base64, URL, or file)
       , blockCacheControl :: Maybe CacheControl
       -- ^ Cache control for prompt caching
       }
@@ -211,6 +273,10 @@ instance FromJSON ContentBlock where
       ImageBlock
         <$> obj .: "source"
         <*> obj .:? "cache_control"
+    "document" ->
+      DocumentBlock
+        <$> obj .: "source"
+        <*> obj .:? "cache_control"
     "tool_use" ->
       ToolUseBlock
         <$> obj .: "id"
@@ -242,6 +308,13 @@ instance ToJSON ContentBlock where
     object
       $ catMaybes
         [ Just ("type" .= ("image" :: Text))
+        , Just ("source" .= src)
+        , ("cache_control" .=) <$> cc
+        ]
+  toJSON (DocumentBlock src cc) =
+    object
+      $ catMaybes
+        [ Just ("type" .= ("document" :: Text))
         , Just ("source" .= src)
         , ("cache_control" .=) <$> cc
         ]
@@ -311,6 +384,15 @@ toolResultBlocks tid blocks e = ToolResultBlock tid (ToolResultBlocks blocks) e 
 -- | Smart constructor for thinking blocks
 thinkingBlock :: Text -> Text -> ContentBlock
 thinkingBlock thinking sig = ThinkingBlock thinking sig Nothing
+
+-- | Smart constructor for document blocks from base64 data
+documentBlock :: Text -> Text -> ContentBlock
+documentBlock mediaType b64Data =
+  DocumentBlock (DocBase64Source mediaType b64Data) Nothing
+
+-- | Smart constructor for document blocks from a URL
+documentBlockUrl :: Text -> ContentBlock
+documentBlockUrl url = DocumentBlock (DocURLSource url) Nothing
 
 -- | Add cache control to any content block
 withCacheControl :: CacheControl -> ContentBlock -> ContentBlock

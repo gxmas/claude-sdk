@@ -29,6 +29,18 @@ instance Arbitrary ImageSource where
     genBase64 = T.pack <$> listOf1 (elements $ ['A' .. 'Z'] ++ ['a' .. 'z'] ++ ['0' .. '9'] ++ ['+', '/', '='])
     genUrl = ("https://example.com/image" <>) . T.pack . show <$> (arbitrary :: Gen Int)
 
+instance Arbitrary DocumentSource where
+  arbitrary =
+    oneof
+      [ DocBase64Source <$> pure "application/pdf" <*> genBase64
+      , DocURLSource <$> genUrl
+      , DocFileSource <$> genFileId
+      ]
+   where
+    genBase64 = T.pack <$> listOf1 (elements $ ['A' .. 'Z'] ++ ['a' .. 'z'] ++ ['0' .. '9'] ++ ['+', '/', '='])
+    genUrl = ("https://example.com/doc" <>) . T.pack . show <$> (arbitrary :: Gen Int)
+    genFileId = ("file_" <>) . T.pack <$> listOf1 (elements ['a' .. 'z'])
+
 instance Arbitrary ToolCallId where
   arbitrary = ToolCallId <$> genText
    where
@@ -52,6 +64,7 @@ instance Arbitrary ContentBlock where
     oneof
       [ TextBlock <$> genText <*> arbitrary
       , ImageBlock <$> arbitrary <*> arbitrary
+      , DocumentBlock <$> arbitrary <*> arbitrary
       , ToolUseBlock <$> arbitrary <*> genText <*> arbitrary <*> arbitrary
       , ToolResultBlock <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
       , ThinkingBlock <$> genText <*> genText <*> arbitrary
@@ -101,6 +114,23 @@ spec = describe "Types.ContentBlock" $ do
       let src = Base64Source "image/jpeg" "data"
       T.isInfixOf "media_type" (T.pack $ show $ encode src) `shouldBe` True
 
+  describe "DocumentSource" $ do
+    it "parses DocBase64Source from JSON" $ do
+      let json = "{\"type\":\"base64\",\"media_type\":\"application/pdf\",\"data\":\"JVBERi0xLjQ...\"}"
+      decode json `shouldBe` Just (DocBase64Source "application/pdf" "JVBERi0xLjQ...")
+
+    it "parses DocURLSource from JSON" $ do
+      let json = "{\"type\":\"url\",\"url\":\"https://example.com/doc.pdf\"}"
+      decode json `shouldBe` Just (DocURLSource "https://example.com/doc.pdf")
+
+    it "parses DocFileSource from JSON" $ do
+      let json = "{\"type\":\"file\",\"file_id\":\"file_abc123\"}"
+      decode json `shouldBe` Just (DocFileSource "file_abc123")
+
+    it "round-trips through JSON"
+      $ property
+      $ \(src :: DocumentSource) -> decode (encode src) === Just src
+
   describe "ContentBlock" $ do
     it "parses TextBlock from JSON" $ do
       let json = "{\"type\":\"text\",\"text\":\"Hello, world!\"}"
@@ -111,6 +141,22 @@ spec = describe "Types.ContentBlock" $ do
       let json = "{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/jpeg\",\"data\":\"abc\"}}"
       let expected = ImageBlock (Base64Source "image/jpeg" "abc") Nothing
       decode json `shouldBe` Just expected
+
+    it "parses DocumentBlock from JSON (base64)" $ do
+      let json = "{\"type\":\"document\",\"source\":{\"type\":\"base64\",\"media_type\":\"application/pdf\",\"data\":\"abc\"}}"
+      let expected = DocumentBlock (DocBase64Source "application/pdf" "abc") Nothing
+      decode json `shouldBe` Just expected
+
+    it "parses DocumentBlock from JSON (url)" $ do
+      let json = "{\"type\":\"document\",\"source\":{\"type\":\"url\",\"url\":\"https://example.com/doc.pdf\"}}"
+      let expected = DocumentBlock (DocURLSource "https://example.com/doc.pdf") Nothing
+      decode json `shouldBe` Just expected
+
+    it "encodes DocumentBlock with correct type field" $ do
+      let block = DocumentBlock (DocBase64Source "application/pdf" "data") Nothing
+      case decode (encode block) of
+        Just (DocumentBlock _ _) -> pure ()
+        _ -> expectationFailure "Failed to roundtrip DocumentBlock"
 
     it "parses ToolUseBlock from JSON" $ do
       let json = "{\"type\":\"tool_use\",\"id\":\"toolu_123\",\"name\":\"get_weather\",\"input\":{\"location\":\"SF\"}}"
@@ -194,6 +240,14 @@ spec = describe "Types.ContentBlock" $ do
     it "thinkingBlock creates ThinkingBlock" $ do
       let block = thinkingBlock "reasoning" "sig123"
       block `shouldBe` ThinkingBlock "reasoning" "sig123" Nothing
+
+    it "documentBlock creates DocumentBlock with base64 source" $ do
+      let block = documentBlock "application/pdf" "data123"
+      block `shouldBe` DocumentBlock (DocBase64Source "application/pdf" "data123") Nothing
+
+    it "documentBlockUrl creates DocumentBlock with URL source" $ do
+      let block = documentBlockUrl "https://example.com/doc.pdf"
+      block `shouldBe` DocumentBlock (DocURLSource "https://example.com/doc.pdf") Nothing
 
   describe "ToolUseInput" $ do
     it "parses JSON object as ToolUseInput" $ do
