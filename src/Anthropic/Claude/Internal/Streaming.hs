@@ -204,6 +204,7 @@ updateMessageResponse (ContentBlockDelta payload) resp =
     InputJsonDelta _ -> resp
     ThinkingDelta _ -> resp
     SignatureDelta _ -> resp
+    CitationsDelta _ -> resp
 updateMessageResponse (MessageDelta payload) resp =
   let delta = messageDeltaDelta payload
       usage = messageDeltaUsage payload
@@ -216,7 +217,7 @@ updateMessageResponse _ resp = resp
 
 -- | Append text to a TextBlock.
 appendText :: T.Text -> ContentBlock -> ContentBlock
-appendText txt (TextBlock existing cc) = TextBlock (existing <> txt) cc
+appendText txt (TextBlock existing cits cc) = TextBlock (existing <> txt) cits cc
 appendText _ block = block
 
 -- | Update the content block at a specific index.

@@ -108,7 +108,7 @@ spec = describe "Types.Request" $ do
     it "parses array as BlocksContent" $ do
       let json = "[{\"type\":\"text\",\"text\":\"Hello\"}]"
       case decode json of
-        Just (BlocksContent [TextBlock "Hello" Nothing]) -> pure ()
+        Just (BlocksContent [TextBlock "Hello" Nothing Nothing]) -> pure ()
         _ -> expectationFailure "Failed to parse BlocksContent"
 
     it "encodes TextContent as plain string" $ do

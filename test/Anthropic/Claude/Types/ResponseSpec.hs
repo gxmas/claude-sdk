@@ -31,7 +31,7 @@ instance Arbitrary MessageResponse where
       <$> (MessageId <$> genText)
       <*> pure "message"
       <*> pure Assistant
-      <*> listOf1 (TextBlock <$> genText <*> pure Nothing)
+      <*> listOf1 (TextBlock <$> genText <*> pure Nothing <*> pure Nothing)
       <*> (ModelId <$> genText)
       <*> (Just <$> elements [EndTurn, MaxTokens, StopSequence, ToolUse])
       <*> (Just <$> genText)
@@ -71,7 +71,7 @@ spec = describe "Types.Response" $ do
               (MessageId "msg_123")
               "message"
               Assistant
-              [TextBlock "hello" Nothing]
+              [TextBlock "hello" Nothing Nothing]
               claude4Sonnet
               (Just EndTurn)
               Nothing
@@ -104,7 +104,7 @@ spec = describe "Types.Response" $ do
               (MessageId "msg_123")
               "message"
               Assistant
-              [TextBlock "Hello" Nothing, TextBlock "World" Nothing]
+              [TextBlock "Hello" Nothing Nothing, TextBlock "World" Nothing Nothing]
               claude4Sonnet
               Nothing
               Nothing
@@ -117,7 +117,7 @@ spec = describe "Types.Response" $ do
               (MessageId "msg_123")
               "message"
               Assistant
-              [TextBlock "Hello" Nothing, ImageBlock (URLSource "https://example.com/img.jpg") Nothing, TextBlock "World" Nothing]
+              [TextBlock "Hello" Nothing Nothing, ImageBlock (URLSource "https://example.com/img.jpg") Nothing, TextBlock "World" Nothing Nothing]
               claude4Sonnet
               Nothing
               Nothing

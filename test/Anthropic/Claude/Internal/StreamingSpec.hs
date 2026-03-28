@@ -39,7 +39,7 @@ spec = describe "Internal.Streaming" $ do
               (MessageId "msg_123")
               "message"
               Assistant
-              [TextBlock "hello" Nothing]
+              [TextBlock "hello" Nothing Nothing]
               (ModelId "claude")
               (Just EndTurn)
               Nothing
@@ -47,18 +47,18 @@ spec = describe "Internal.Streaming" $ do
           evt = MessageStart (MessageStartPayload msg)
           result = updateMessageResponse evt defaultMessageResponse
       responseId result `shouldBe` MessageId "msg_123"
-      responseContent result `shouldBe` [TextBlock "hello" Nothing]
+      responseContent result `shouldBe` [TextBlock "hello" Nothing Nothing]
 
     it "ContentBlockStart appends a block" $ do
-      let evt = ContentBlockStart (ContentBlockStartPayload 0 (TextBlock "" Nothing))
+      let evt = ContentBlockStart (ContentBlockStartPayload 0 (TextBlock "" Nothing Nothing))
           result = updateMessageResponse evt defaultMessageResponse
       length (responseContent result) `shouldBe` 1
 
     it "ContentBlockDelta appends text" $ do
-      let base = defaultMessageResponse {responseContent = [TextBlock "He" Nothing]}
+      let base = defaultMessageResponse {responseContent = [TextBlock "He" Nothing Nothing]}
           evt = ContentBlockDelta (ContentBlockDeltaPayload 0 (TextDelta "llo"))
           result = updateMessageResponse evt base
-      responseContent result `shouldBe` [TextBlock "Hello" Nothing]
+      responseContent result `shouldBe` [TextBlock "Hello" Nothing Nothing]
 
     it "MessageDelta sets stop reason and usage" $ do
       let delta = DeltaBody (Just EndTurn) Nothing

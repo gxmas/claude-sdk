@@ -69,7 +69,7 @@ spec = describe "Streaming" $ do
           finalMsg = foldl (flip updateMessageResponse) defaultMessageResponse rightEvents
 
       responseId finalMsg `shouldBe` MessageId "msg_s1"
-      responseContent finalMsg `shouldBe` [TextBlock "Hello!" Nothing]
+      responseContent finalMsg `shouldBe` [TextBlock "Hello!" Nothing Nothing]
       responseStopReason finalMsg `shouldBe` Just EndTurn
       usageOutputTokens (responseUsage finalMsg) `shouldBe` 5
 

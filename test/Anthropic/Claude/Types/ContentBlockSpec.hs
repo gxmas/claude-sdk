@@ -33,13 +33,28 @@ instance Arbitrary DocumentSource where
   arbitrary =
     oneof
       [ DocBase64Source <$> pure "application/pdf" <*> genBase64
+      , DocTextSource <$> pure "text/plain" <*> genText'
       , DocURLSource <$> genUrl
       , DocFileSource <$> genFileId
       ]
    where
     genBase64 = T.pack <$> listOf1 (elements $ ['A' .. 'Z'] ++ ['a' .. 'z'] ++ ['0' .. '9'] ++ ['+', '/', '='])
+    genText' = T.pack <$> listOf1 (elements ['a' .. 'z'])
     genUrl = ("https://example.com/doc" <>) . T.pack . show <$> (arbitrary :: Gen Int)
     genFileId = ("file_" <>) . T.pack <$> listOf1 (elements ['a' .. 'z'])
+
+instance Arbitrary CitationsConfig where
+  arbitrary = CitationsConfig <$> arbitrary
+
+instance Arbitrary Citation where
+  arbitrary =
+    oneof
+      [ CharLocation <$> genText' <*> choose (0, 10) <*> oneof [pure Nothing, Just <$> genText'] <*> choose (0, 100) <*> choose (0, 100)
+      , PageLocation <$> genText' <*> choose (0, 10) <*> oneof [pure Nothing, Just <$> genText'] <*> choose (1, 50) <*> choose (1, 50)
+      , ContentBlockLocation <$> genText' <*> choose (0, 10) <*> oneof [pure Nothing, Just <$> genText'] <*> choose (0, 20) <*> choose (0, 20)
+      ]
+   where
+    genText' = T.pack <$> listOf1 (elements ['a' .. 'z'])
 
 instance Arbitrary ToolCallId where
   arbitrary = ToolCallId <$> genText
@@ -62,9 +77,9 @@ instance Arbitrary ToolUseInput where
 instance Arbitrary ContentBlock where
   arbitrary =
     oneof
-      [ TextBlock <$> genText <*> arbitrary
+      [ TextBlock <$> genText <*> pure Nothing <*> arbitrary
       , ImageBlock <$> arbitrary <*> arbitrary
-      , DocumentBlock <$> arbitrary <*> arbitrary
+      , DocumentBlock <$> arbitrary <*> oneof [pure Nothing, Just <$> genText] <*> pure Nothing <*> oneof [pure Nothing, Just <$> arbitrary] <*> arbitrary
       , ToolUseBlock <$> arbitrary <*> genText <*> arbitrary <*> arbitrary
       , ToolResultBlock <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
       , ThinkingBlock <$> genText <*> genText <*> arbitrary
@@ -134,7 +149,7 @@ spec = describe "Types.ContentBlock" $ do
   describe "ContentBlock" $ do
     it "parses TextBlock from JSON" $ do
       let json = "{\"type\":\"text\",\"text\":\"Hello, world!\"}"
-      let expected = TextBlock "Hello, world!" Nothing
+      let expected = TextBlock "Hello, world!" Nothing Nothing
       decode json `shouldBe` Just expected
 
     it "parses ImageBlock from JSON" $ do
@@ -144,18 +159,24 @@ spec = describe "Types.ContentBlock" $ do
 
     it "parses DocumentBlock from JSON (base64)" $ do
       let json = "{\"type\":\"document\",\"source\":{\"type\":\"base64\",\"media_type\":\"application/pdf\",\"data\":\"abc\"}}"
-      let expected = DocumentBlock (DocBase64Source "application/pdf" "abc") Nothing
+      let expected = DocumentBlock (DocBase64Source "application/pdf" "abc") Nothing Nothing Nothing Nothing
       decode json `shouldBe` Just expected
 
     it "parses DocumentBlock from JSON (url)" $ do
       let json = "{\"type\":\"document\",\"source\":{\"type\":\"url\",\"url\":\"https://example.com/doc.pdf\"}}"
-      let expected = DocumentBlock (DocURLSource "https://example.com/doc.pdf") Nothing
+      let expected = DocumentBlock (DocURLSource "https://example.com/doc.pdf") Nothing Nothing Nothing Nothing
       decode json `shouldBe` Just expected
 
+    it "parses DocumentBlock with title, context, and citations" $ do
+      let json = "{\"type\":\"document\",\"source\":{\"type\":\"text\",\"media_type\":\"text/plain\",\"data\":\"Hello.\"},\"title\":\"Doc\",\"context\":\"ctx\",\"citations\":{\"enabled\":true}}"
+      case decode json of
+        Just (DocumentBlock (DocTextSource _ _) (Just "Doc") (Just "ctx") (Just (CitationsConfig True)) Nothing) -> pure ()
+        _ -> expectationFailure "Failed to parse DocumentBlock with citations"
+
     it "encodes DocumentBlock with correct type field" $ do
-      let block = DocumentBlock (DocBase64Source "application/pdf" "data") Nothing
+      let block = DocumentBlock (DocBase64Source "application/pdf" "data") Nothing Nothing Nothing Nothing
       case decode (encode block) of
-        Just (DocumentBlock _ _) -> pure ()
+        Just (DocumentBlock _ _ _ _ _) -> pure ()
         _ -> expectationFailure "Failed to roundtrip DocumentBlock"
 
     it "parses ToolUseBlock from JSON" $ do
@@ -180,10 +201,16 @@ spec = describe "Types.ContentBlock" $ do
         _ -> expectationFailure "Failed to parse ToolResultBlock with blocks content"
 
     it "encodes TextBlock with correct type field" $ do
-      let block = TextBlock "test" Nothing
+      let block = TextBlock "test" Nothing Nothing
       case decode (encode block) of
-        Just (TextBlock _ _) -> pure ()
+        Just (TextBlock _ _ _) -> pure ()
         _ -> expectationFailure "Failed to roundtrip TextBlock"
+
+    it "parses TextBlock with citations" $ do
+      let json = "{\"type\":\"text\",\"text\":\"the grass is green\",\"citations\":[{\"type\":\"char_location\",\"cited_text\":\"The grass is green.\",\"document_index\":0,\"start_char_index\":0,\"end_char_index\":20}]}"
+      case decode json of
+        Just (TextBlock "the grass is green" (Just [CharLocation _ 0 Nothing 0 20]) Nothing) -> pure ()
+        _ -> expectationFailure "Failed to parse TextBlock with citations"
 
     it "encodes ImageBlock with correct type field" $ do
       let block = ImageBlock (URLSource "https://example.com/img.jpg") Nothing
@@ -219,7 +246,7 @@ spec = describe "Types.ContentBlock" $ do
 
   describe "Helper Constructors" $ do
     it "textBlock creates TextBlock" $ do
-      textBlock "hello" `shouldBe` TextBlock "hello" Nothing
+      textBlock "hello" `shouldBe` TextBlock "hello" Nothing Nothing
 
     it "imageBlock creates ImageBlock with Base64Source" $ do
       let block = imageBlock "image/png" "data123"
@@ -243,11 +270,15 @@ spec = describe "Types.ContentBlock" $ do
 
     it "documentBlock creates DocumentBlock with base64 source" $ do
       let block = documentBlock "application/pdf" "data123"
-      block `shouldBe` DocumentBlock (DocBase64Source "application/pdf" "data123") Nothing
+      block `shouldBe` DocumentBlock (DocBase64Source "application/pdf" "data123") Nothing Nothing Nothing Nothing
 
     it "documentBlockUrl creates DocumentBlock with URL source" $ do
       let block = documentBlockUrl "https://example.com/doc.pdf"
-      block `shouldBe` DocumentBlock (DocURLSource "https://example.com/doc.pdf") Nothing
+      block `shouldBe` DocumentBlock (DocURLSource "https://example.com/doc.pdf") Nothing Nothing Nothing Nothing
+
+    it "documentBlockText creates DocumentBlock with text source" $ do
+      let block = documentBlockText "Hello world."
+      block `shouldBe` DocumentBlock (DocTextSource "text/plain" "Hello world.") Nothing Nothing Nothing Nothing
 
   describe "ToolUseInput" $ do
     it "parses JSON object as ToolUseInput" $ do
@@ -280,19 +311,45 @@ spec = describe "Types.ContentBlock" $ do
       $ property
       $ \(input :: ToolUseInput) -> decode (encode input) === Just input
 
+  describe "Citation" $ do
+    it "parses CharLocation from JSON" $ do
+      let json = "{\"type\":\"char_location\",\"cited_text\":\"hello\",\"document_index\":0,\"document_title\":\"Doc\",\"start_char_index\":0,\"end_char_index\":5}"
+      decode json `shouldBe` Just (CharLocation "hello" 0 (Just "Doc") 0 5)
+
+    it "parses PageLocation from JSON" $ do
+      let json = "{\"type\":\"page_location\",\"cited_text\":\"text\",\"document_index\":1,\"start_page_number\":5,\"end_page_number\":6}"
+      decode json `shouldBe` Just (PageLocation "text" 1 Nothing 5 6)
+
+    it "parses ContentBlockLocation from JSON" $ do
+      let json = "{\"type\":\"content_block_location\",\"cited_text\":\"chunk\",\"document_index\":2,\"document_title\":\"Custom\",\"start_block_index\":0,\"end_block_index\":1}"
+      decode json `shouldBe` Just (ContentBlockLocation "chunk" 2 (Just "Custom") 0 1)
+
+    it "round-trips through JSON"
+      $ property
+      $ \(c :: Citation) -> decode (encode c) === Just c
+
+  describe "CitationsConfig" $ do
+    it "parses from JSON" $ do
+      let json = "{\"enabled\":true}"
+      decode json `shouldBe` Just (CitationsConfig True)
+
+    it "round-trips through JSON"
+      $ property
+      $ \(cc :: CitationsConfig) -> decode (encode cc) === Just cc
+
   describe "Cache Control on ContentBlock" $ do
     it "omits cache_control when Nothing" $ do
-      let block = TextBlock "test" Nothing
+      let block = TextBlock "test" Nothing Nothing
           jsonText = T.pack $ show $ encode block
       T.isInfixOf "cache_control" jsonText `shouldBe` False
 
     it "includes cache_control when Just" $ do
-      let block = TextBlock "test" (Just ephemeralCacheControl)
+      let block = TextBlock "test" Nothing (Just ephemeralCacheControl)
           jsonText = T.pack $ show $ encode block
       T.isInfixOf "cache_control" jsonText `shouldBe` True
 
     it "round-trips ContentBlock with cache_control" $ do
-      let block = TextBlock "cached text" (Just ephemeralCacheControl)
+      let block = TextBlock "cached text" Nothing (Just ephemeralCacheControl)
       decode (encode block) `shouldBe` Just block
 
     it "withCacheControl sets cache_control on any block" $ do

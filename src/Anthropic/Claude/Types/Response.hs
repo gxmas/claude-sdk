@@ -128,7 +128,7 @@ instance ToJSON TokenCount where
 extractText :: MessageResponse -> Text
 extractText response = T.intercalate "\n" texts
  where
-  texts = [t | TextBlock t _ <- responseContent response]
+  texts = [t | TextBlock t _ _ <- responseContent response]
 
 -- | Unwrap APIResponse or throw exception
 --

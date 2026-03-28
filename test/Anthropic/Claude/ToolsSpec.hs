@@ -49,7 +49,7 @@ spec = describe "Tools" $ do
               (MessageId "msg_1")
               "message"
               Assistant
-              [ TextBlock "I'll check the weather." Nothing
+              [ TextBlock "I'll check the weather." Nothing Nothing
               , ToolUseBlock toolId "get_weather" (ToolUseInput inputObj) Nothing
               ]
               (ModelId "claude")
@@ -70,7 +70,7 @@ spec = describe "Tools" $ do
               "message"
               Assistant
               [ ToolUseBlock (ToolCallId "t1") "tool_a" (ToolUseInput KM.empty) Nothing
-              , TextBlock "between" Nothing
+              , TextBlock "between" Nothing Nothing
               , ToolUseBlock (ToolCallId "t2") "tool_b" (ToolUseInput KM.empty) Nothing
               ]
               (ModelId "claude")
@@ -85,7 +85,7 @@ spec = describe "Tools" $ do
               (MessageId "msg_1")
               "message"
               Assistant
-              [TextBlock "Just text" Nothing]
+              [TextBlock "Just text" Nothing Nothing]
               (ModelId "claude")
               (Just EndTurn)
               Nothing

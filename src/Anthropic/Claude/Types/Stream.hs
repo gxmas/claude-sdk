@@ -29,7 +29,7 @@ module Anthropic.Claude.Types.Stream
 where
 
 import Anthropic.Claude.Internal.JSON
-import Anthropic.Claude.Types.ContentBlock
+import Anthropic.Claude.Types.ContentBlock (Citation, ContentBlock)
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Response (MessageResponse, Usage)
 import qualified Data.Aeson.KeyMap as KM
@@ -47,6 +47,8 @@ data ContentDelta
     ThinkingDelta Text
   | -- | Incremental signature data (extended thinking)
     SignatureDelta Text
+  | -- | Citation for the current text block (citations feature)
+    CitationsDelta Citation
   deriving (Eq, Show, Generic)
 
 instance FromJSON ContentDelta where
@@ -55,6 +57,7 @@ instance FromJSON ContentDelta where
     "input_json_delta" -> InputJsonDelta <$> obj .: "partial_json"
     "thinking_delta" -> ThinkingDelta <$> obj .: "thinking"
     "signature_delta" -> SignatureDelta <$> obj .: "signature"
+    "citations_delta" -> CitationsDelta <$> obj .: "citation"
     other -> fail $ "Unknown ContentDelta type: " <> T.unpack other
 
 instance ToJSON ContentDelta where
@@ -70,6 +73,9 @@ instance ToJSON ContentDelta where
   toJSON (SignatureDelta sig) =
     object
       ["type" .= ("signature_delta" :: Text), "signature" .= sig]
+  toJSON (CitationsDelta citation) =
+    object
+      ["type" .= ("citations_delta" :: Text), "citation" .= citation]
 
 -- | Payload for a @message_start@ event.
 data MessageStartPayload = MessageStartPayload

@@ -14,7 +14,7 @@ a single piece of content in a message (text, image, tool use, or tool result).
 This module contains:
 
 * 'ContentBlock' and its 6 constructors (TextBlock, ImageBlock, DocumentBlock, ToolUseBlock, ToolResultBlock, ThinkingBlock)
-* Direct dependencies of ContentBlock (CacheControl, ImageSource, DocumentSource, ToolResultContent, ToolUseInput)
+* Direct dependencies of ContentBlock (CacheControl, ImageSource, DocumentSource, Citation, CitationsConfig, ToolResultContent, ToolUseInput)
 * Helper constructors and combinators
 -}
 module Anthropic.Claude.Types.ContentBlock
@@ -22,6 +22,8 @@ module Anthropic.Claude.Types.ContentBlock
     ContentBlock (..)
   , ImageSource (..)
   , DocumentSource (..)
+  , Citation (..)
+  , CitationsConfig (..)
   , CacheControl (..)
   , ToolResultContent (..)
   , ToolUseInput (..)
@@ -35,6 +37,7 @@ module Anthropic.Claude.Types.ContentBlock
   , thinkingBlock
   , documentBlock
   , documentBlockUrl
+  , documentBlockText
 
     -- * Cache Control Helpers
   , withCacheControl
@@ -109,13 +112,24 @@ instance ToJSON ImageSource where
 
 -- | Document source for PDF and other document types
 --
--- Documents can be provided as base64-encoded data, URLs, or file references
+-- Documents can be provided as base64-encoded data, plain text, custom
+-- content blocks, URLs, or file references.
 data DocumentSource
   = DocBase64Source
       { docMediaType :: Text
       -- ^ MIME type (e.g., "application/pdf")
       , docData :: Text
       -- ^ Base64-encoded document data
+      }
+  | DocTextSource
+      { docTextMediaType :: Text
+      -- ^ MIME type (e.g., "text/plain")
+      , docTextData :: Text
+      -- ^ Plain text content
+      }
+  | DocContentSource
+      { docContent :: [Value]
+      -- ^ Content blocks (e.g., @[{"type":"text","text":"..."}]@)
       }
   | DocURLSource
       { docUrl :: Text
@@ -133,6 +147,13 @@ instance FromJSON DocumentSource where
       DocBase64Source
         <$> obj .: "media_type"
         <*> obj .: "data"
+    "text" ->
+      DocTextSource
+        <$> obj .: "media_type"
+        <*> obj .: "data"
+    "content" ->
+      DocContentSource
+        <$> obj .: "content"
     "url" ->
       DocURLSource
         <$> obj .: "url"
@@ -148,6 +169,17 @@ instance ToJSON DocumentSource where
       , "media_type" .= mediaType
       , "data" .= docData'
       ]
+  toJSON (DocTextSource mediaType textData) =
+    object
+      [ "type" .= ("text" :: Text)
+      , "media_type" .= mediaType
+      , "data" .= textData
+      ]
+  toJSON (DocContentSource content) =
+    object
+      [ "type" .= ("content" :: Text)
+      , "content" .= content
+      ]
   toJSON (DocURLSource url) =
     object
       [ "type" .= ("url" :: Text)
@@ -158,6 +190,107 @@ instance ToJSON DocumentSource where
       [ "type" .= ("file" :: Text)
       , "file_id" .= fileId
       ]
+
+-- | Citation configuration for document blocks
+newtype CitationsConfig = CitationsConfig
+  { citationsEnabled :: Bool
+  }
+  deriving (Eq, Show, Generic)
+
+instance FromJSON CitationsConfig where
+  parseJSON = genericParseJSON (prefixOptions "citations")
+
+instance ToJSON CitationsConfig where
+  toJSON = genericToJSON (prefixOptions "citations")
+  toEncoding = genericToEncoding (prefixOptions "citations")
+
+-- | A citation referencing a source document location
+--
+-- Citations appear in TextBlock responses when citations are enabled.
+-- Three location types correspond to the three document source types.
+data Citation
+  = -- | Character-level citation for plain text documents
+    CharLocation
+      { citedText :: Text
+      , citationDocumentIndex :: Int
+      , citationDocumentTitle :: Maybe Text
+      , citationStartCharIndex :: Int
+      , citationEndCharIndex :: Int
+      }
+  | -- | Page-level citation for PDF documents
+    PageLocation
+      { citedText :: Text
+      , citationDocumentIndex :: Int
+      , citationDocumentTitle :: Maybe Text
+      , citationStartPageNumber :: Int
+      , citationEndPageNumber :: Int
+      }
+  | -- | Block-level citation for custom content documents
+    ContentBlockLocation
+      { citedText :: Text
+      , citationDocumentIndex :: Int
+      , citationDocumentTitle :: Maybe Text
+      , citationStartBlockIndex :: Int
+      , citationEndBlockIndex :: Int
+      }
+  deriving (Eq, Show, Generic)
+
+instance FromJSON Citation where
+  parseJSON = withDiscriminator "type" $ \typeField obj -> case typeField of
+    "char_location" ->
+      CharLocation
+        <$> obj .: "cited_text"
+        <*> obj .: "document_index"
+        <*> obj .:? "document_title"
+        <*> obj .: "start_char_index"
+        <*> obj .: "end_char_index"
+    "page_location" ->
+      PageLocation
+        <$> obj .: "cited_text"
+        <*> obj .: "document_index"
+        <*> obj .:? "document_title"
+        <*> obj .: "start_page_number"
+        <*> obj .: "end_page_number"
+    "content_block_location" ->
+      ContentBlockLocation
+        <$> obj .: "cited_text"
+        <*> obj .: "document_index"
+        <*> obj .:? "document_title"
+        <*> obj .: "start_block_index"
+        <*> obj .: "end_block_index"
+    other -> fail $ "Unknown Citation type: " <> T.unpack other
+
+instance ToJSON Citation where
+  toJSON (CharLocation cited docIdx docTitle startIdx endIdx) =
+    object
+      $ catMaybes
+        [ Just ("type" .= ("char_location" :: Text))
+        , Just ("cited_text" .= cited)
+        , Just ("document_index" .= docIdx)
+        , ("document_title" .=) <$> docTitle
+        , Just ("start_char_index" .= startIdx)
+        , Just ("end_char_index" .= endIdx)
+        ]
+  toJSON (PageLocation cited docIdx docTitle startPage endPage) =
+    object
+      $ catMaybes
+        [ Just ("type" .= ("page_location" :: Text))
+        , Just ("cited_text" .= cited)
+        , Just ("document_index" .= docIdx)
+        , ("document_title" .=) <$> docTitle
+        , Just ("start_page_number" .= startPage)
+        , Just ("end_page_number" .= endPage)
+        ]
+  toJSON (ContentBlockLocation cited docIdx docTitle startBlk endBlk) =
+    object
+      $ catMaybes
+        [ Just ("type" .= ("content_block_location" :: Text))
+        , Just ("cited_text" .= cited)
+        , Just ("document_index" .= docIdx)
+        , ("document_title" .=) <$> docTitle
+        , Just ("start_block_index" .= startBlk)
+        , Just ("end_block_index" .= endBlk)
+        ]
 
 -- | Tool result content
 --
@@ -218,6 +351,8 @@ data ContentBlock
   = TextBlock
       { blockText :: Text
       -- ^ Text content
+      , blockCitations :: Maybe [Citation]
+      -- ^ Citations referencing source documents (response only)
       , blockCacheControl :: Maybe CacheControl
       -- ^ Cache control for prompt caching
       }
@@ -229,7 +364,13 @@ data ContentBlock
       }
   | DocumentBlock
       { blockDocSource :: DocumentSource
-      -- ^ Document source (base64, URL, or file)
+      -- ^ Document source (base64, URL, text, content, or file)
+      , blockDocTitle :: Maybe Text
+      -- ^ Optional document title (not citable)
+      , blockDocContext :: Maybe Text
+      -- ^ Optional context about the document (not citable)
+      , blockDocCitations :: Maybe CitationsConfig
+      -- ^ Enable citations for this document
       , blockCacheControl :: Maybe CacheControl
       -- ^ Cache control for prompt caching
       }
@@ -268,6 +409,7 @@ instance FromJSON ContentBlock where
     "text" ->
       TextBlock
         <$> obj .: "text"
+        <*> obj .:? "citations"
         <*> obj .:? "cache_control"
     "image" ->
       ImageBlock
@@ -276,6 +418,9 @@ instance FromJSON ContentBlock where
     "document" ->
       DocumentBlock
         <$> obj .: "source"
+        <*> obj .:? "title"
+        <*> obj .:? "context"
+        <*> obj .:? "citations"
         <*> obj .:? "cache_control"
     "tool_use" ->
       ToolUseBlock
@@ -297,11 +442,12 @@ instance FromJSON ContentBlock where
     other -> fail $ "Unknown ContentBlock type: " <> T.unpack other
 
 instance ToJSON ContentBlock where
-  toJSON (TextBlock txt cc) =
+  toJSON (TextBlock txt cits cc) =
     object
       $ catMaybes
         [ Just ("type" .= ("text" :: Text))
         , Just ("text" .= txt)
+        , ("citations" .=) <$> cits
         , ("cache_control" .=) <$> cc
         ]
   toJSON (ImageBlock src cc) =
@@ -311,11 +457,14 @@ instance ToJSON ContentBlock where
         , Just ("source" .= src)
         , ("cache_control" .=) <$> cc
         ]
-  toJSON (DocumentBlock src cc) =
+  toJSON (DocumentBlock src title ctx cits cc) =
     object
       $ catMaybes
         [ Just ("type" .= ("document" :: Text))
         , Just ("source" .= src)
+        , ("title" .=) <$> title
+        , ("context" .=) <$> ctx
+        , ("citations" .=) <$> cits
         , ("cache_control" .=) <$> cc
         ]
   toJSON (ToolUseBlock toolId name input cc) =
@@ -347,7 +496,7 @@ instance ToJSON ContentBlock where
 
 -- | Smart constructor for text blocks
 textBlock :: Text -> ContentBlock
-textBlock t = TextBlock t Nothing
+textBlock t = TextBlock t Nothing Nothing
 
 -- | Smart constructor for image blocks from base64 data
 imageBlock :: Text -> Text -> ContentBlock
@@ -388,11 +537,16 @@ thinkingBlock thinking sig = ThinkingBlock thinking sig Nothing
 -- | Smart constructor for document blocks from base64 data
 documentBlock :: Text -> Text -> ContentBlock
 documentBlock mediaType b64Data =
-  DocumentBlock (DocBase64Source mediaType b64Data) Nothing
+  DocumentBlock (DocBase64Source mediaType b64Data) Nothing Nothing Nothing Nothing
 
 -- | Smart constructor for document blocks from a URL
 documentBlockUrl :: Text -> ContentBlock
-documentBlockUrl url = DocumentBlock (DocURLSource url) Nothing
+documentBlockUrl url = DocumentBlock (DocURLSource url) Nothing Nothing Nothing Nothing
+
+-- | Smart constructor for document blocks from plain text
+documentBlockText :: Text -> ContentBlock
+documentBlockText txt =
+  DocumentBlock (DocTextSource "text/plain" txt) Nothing Nothing Nothing Nothing
 
 -- | Add cache control to any content block
 withCacheControl :: CacheControl -> ContentBlock -> ContentBlock

@@ -4,6 +4,7 @@
 
 module Anthropic.Claude.Types.StreamSpec (spec) where
 
+import Anthropic.Claude.Types.ContentBlock (Citation (..))
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Response
 import Anthropic.Claude.Types.Stream
@@ -17,6 +18,14 @@ import Test.QuickCheck
 genText :: Gen T.Text
 genText = T.pack <$> listOf1 (elements ['a' .. 'z'])
 
+instance Arbitrary Citation where
+  arbitrary =
+    oneof
+      [ CharLocation <$> genText <*> choose (0, 10) <*> pure Nothing <*> choose (0, 100) <*> choose (0, 100)
+      , PageLocation <$> genText <*> choose (0, 10) <*> pure Nothing <*> choose (1, 50) <*> choose (1, 50)
+      , ContentBlockLocation <$> genText <*> choose (0, 10) <*> pure Nothing <*> choose (0, 20) <*> choose (0, 20)
+      ]
+
 instance Arbitrary ContentDelta where
   arbitrary =
     oneof
@@ -24,6 +33,7 @@ instance Arbitrary ContentDelta where
       , InputJsonDelta <$> genText
       , ThinkingDelta <$> genText
       , SignatureDelta <$> genText
+      , CitationsDelta <$> arbitrary
       ]
 
 instance Arbitrary Usage where
@@ -61,6 +71,10 @@ spec = describe "Types.Stream" $ do
     it "parses SignatureDelta from JSON" $ do
       let json = "{\"type\":\"signature_delta\",\"signature\":\"sig_abc123\"}"
       decode json `shouldBe` Just (SignatureDelta "sig_abc123")
+
+    it "parses CitationsDelta from JSON" $ do
+      let json = "{\"type\":\"citations_delta\",\"citation\":{\"type\":\"char_location\",\"cited_text\":\"hello\",\"document_index\":0,\"start_char_index\":0,\"end_char_index\":5}}"
+      decode json `shouldBe` Just (CitationsDelta (CharLocation "hello" 0 Nothing 0 5))
 
     it "round-trips through JSON"
       $ property
