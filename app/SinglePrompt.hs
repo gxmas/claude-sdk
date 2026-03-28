@@ -22,7 +22,7 @@ single-prompt [OPTIONS]
 -}
 module Main (main) where
 
-import Anthropic.Claude.Client (mkClientEnv, withLogger)
+import Anthropic.Claude.Client (mkClientEnv, withLogBodyLimit, withLogger)
 import Anthropic.Claude.Messages
 import Anthropic.Claude.Types hiding (optional)
 import Control.Monad (when)
@@ -45,6 +45,8 @@ data Options = Options
   , optTopP :: Maybe Double
   , optThinking :: Maybe Int
   , optServiceTier :: Maybe T.Text
+  , optLogLevel :: Maybe LogLevel
+  , optLogBodyLimit :: Maybe Int
   }
 
 optionsParser :: Parser Options
@@ -138,6 +140,28 @@ optionsParser =
                 \Determines whether to use priority or standard capacity."
           )
       )
+    <*> optional
+      ( option
+          validateLogLevel
+          ( long "log-level"
+              <> metavar "LEVEL"
+              <> help
+                "Log level: debug, info, warn, error. Debug shows request/response \
+                \bodies, info shows one-line summaries, warn shows rate limit \
+                \pressure and retries, error shows non-retryable API errors. \
+                \Logging is disabled by default."
+          )
+      )
+    <*> optional
+      ( option
+          auto
+          ( long "log-body-limit"
+              <> metavar "BYTES"
+              <> help
+                "Maximum bytes of request/response body to include in debug \
+                \log output (default: 4096). Only relevant with --log-level debug."
+          )
+      )
 
 -- | Validate model is a known model ID
 validateModelId :: ReadM ModelId
@@ -176,6 +200,17 @@ validateThinking = do
     then readerError "thinking budget must be >= 1024"
     else pure b
 
+-- | Validate log level is one of: debug, info, warn, error
+validateLogLevel :: ReadM LogLevel
+validateLogLevel = do
+  s <- str
+  case s :: String of
+    "debug" -> pure LevelDebug
+    "info" -> pure LevelInfo
+    "warn" -> pure LevelWarn
+    "error" -> pure LevelError
+    _ -> readerError "log level must be one of: debug, info, warn, error"
+
 -- | Build a CreateMessageRequest from CLI options and user prompt
 buildRequest :: Options -> T.Text -> CreateMessageRequest
 buildRequest opts prompt =
@@ -208,8 +243,14 @@ main = do
     Nothing -> die "Error: ANTHROPIC_API_KEY environment variable not set"
     Just key -> pure $ ApiKey (T.pack key)
 
-  -- Create client environment with debug logging
-  env <- withLogger debugLogger <$> mkClientEnv apiKey
+  -- Create client environment with optional logging
+  env0 <- mkClientEnv apiKey
+  let env = case optLogLevel opts of
+        Nothing -> env0
+        Just lvl ->
+          env0
+            & withLogger (stderrLogger lvl)
+            & maybe id withLogBodyLimit (optLogBodyLimit opts)
 
   -- Get prompt from user
   putStr "Enter your prompt: "
