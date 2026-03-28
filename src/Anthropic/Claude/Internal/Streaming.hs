@@ -238,4 +238,5 @@ defaultMessageResponse =
     , responseStopReason = Nothing
     , responseStopSequence = Nothing
     , responseUsage = Usage 0 0 Nothing Nothing
+    , responseServiceTier = Nothing
     }

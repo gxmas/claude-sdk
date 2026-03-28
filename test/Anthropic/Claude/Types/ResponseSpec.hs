@@ -36,6 +36,7 @@ instance Arbitrary MessageResponse where
       <*> (Just <$> elements [EndTurn, MaxTokens, StopSequence, ToolUse])
       <*> (Just <$> genText)
       <*> arbitrary
+      <*> pure Nothing
 
 instance Arbitrary TokenCount where
   arbitrary = TokenCount <$> choose (0, 100000)
@@ -76,6 +77,7 @@ spec = describe "Types.Response" $ do
               (Just EndTurn)
               Nothing
               (Usage 10 20 Nothing Nothing)
+              Nothing
       T.isInfixOf "stop_reason" (T.pack $ show $ encode resp) `shouldBe` True
 
   describe "APIResponse" $ do
@@ -109,6 +111,7 @@ spec = describe "Types.Response" $ do
               Nothing
               Nothing
               (Usage 10 20 Nothing Nothing)
+              Nothing
       extractText resp `shouldBe` "Hello\nWorld"
 
     it "extractText ignores non-text blocks" $ do
@@ -122,6 +125,7 @@ spec = describe "Types.Response" $ do
               Nothing
               Nothing
               (Usage 10 20 Nothing Nothing)
+              Nothing
       extractText resp `shouldBe` "Hello\nWorld"
 
   describe "Usage cache fields" $ do

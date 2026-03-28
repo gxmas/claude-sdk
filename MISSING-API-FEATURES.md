@@ -6,6 +6,3 @@ API capabilities not yet modeled in the SDK.
 
 Beyond `type: "custom"`, the API supports built-in tool types: `type: "computer_20241022"` (screen control), `type: "text_editor_20241022"`, and `type: "bash_20241022"`. Each has a distinct schema. The current `Tool` type hardcodes `type: "custom"` and rejects others in `FromJSON`.
 
-## 2. Service Tier
-
-The API supports a `service_tier` field on requests (e.g., `"standard"`, `"priority"`) and returns it in the response. Not currently modeled.

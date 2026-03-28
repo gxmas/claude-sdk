@@ -56,6 +56,7 @@ spec = describe "Tools" $ do
               (Just ToolUse)
               Nothing
               (Usage 10 20 Nothing Nothing)
+              Nothing
           calls = extractToolCalls resp
       length calls `shouldBe` 1
       let (cid, name, inp) = head calls
@@ -77,6 +78,7 @@ spec = describe "Tools" $ do
               (Just ToolUse)
               Nothing
               (Usage 10 20 Nothing Nothing)
+              Nothing
       length (extractToolCalls resp) `shouldBe` 2
 
     it "returns empty list when no tool calls" $ do
@@ -90,6 +92,7 @@ spec = describe "Tools" $ do
               (Just EndTurn)
               Nothing
               (Usage 10 20 Nothing Nothing)
+              Nothing
       extractToolCalls resp `shouldBe` []
 
   describe "buildToolResult" $ do

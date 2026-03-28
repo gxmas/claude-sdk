@@ -44,6 +44,7 @@ spec = describe "Internal.Streaming" $ do
               (Just EndTurn)
               Nothing
               (Usage 10 20 Nothing Nothing)
+              Nothing
           evt = MessageStart (MessageStartPayload msg)
           result = updateMessageResponse evt defaultMessageResponse
       responseId result `shouldBe` MessageId "msg_123"

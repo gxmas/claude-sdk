@@ -62,6 +62,8 @@ data MessageResponse = MessageResponse
   , responseStopReason :: Maybe StopReason
   , responseStopSequence :: Maybe Text
   , responseUsage :: Usage
+  , responseServiceTier :: Maybe Text
+  -- ^ Service tier used (e.g., "standard", "priority")
   }
   deriving (Eq, Show, Generic)
 

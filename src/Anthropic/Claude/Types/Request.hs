@@ -237,6 +237,8 @@ data CreateMessageRequest = CreateMessageRequest
   -- ^ Nucleus sampling parameter (0.0-1.0)
   , requestThinking :: Maybe ThinkingConfig
   -- ^ Extended thinking configuration
+  , requestServiceTier :: Maybe Text
+  -- ^ Service tier (e.g., "standard", "priority")
   }
   deriving (Eq, Show, Generic)
 
@@ -255,6 +257,7 @@ instance FromJSON CreateMessageRequest where
     topK <- obj .:? "top_k"
     topP <- obj .:? "top_p"
     thinking <- obj .:? "thinking"
+    serviceTier <- obj .:? "service_tier"
 
     -- Validation
     if null messages
@@ -278,9 +281,10 @@ instance FromJSON CreateMessageRequest where
                 topK
                 topP
                 thinking
+                serviceTier
 
 instance ToJSON CreateMessageRequest where
-  toJSON (CreateMessageRequest model messages maxTokens metadata stopSeqs stream system temp toolChoice tools topK topP thinking) =
+  toJSON (CreateMessageRequest model messages maxTokens metadata stopSeqs stream system temp toolChoice tools topK topP thinking serviceTier) =
     object
       $ [ "model" .= model
         , "messages" .= messages
@@ -297,6 +301,7 @@ instance ToJSON CreateMessageRequest where
           , ("top_k" .=) <$> topK
           , ("top_p" .=) <$> topP
           , ("thinking" .=) <$> thinking
+          , ("service_tier" .=) <$> serviceTier
           ]
 
 -- | Helper: Create a user message with text content
@@ -333,6 +338,7 @@ mkRequest model messages maxTokens =
     , requestTopK = Nothing
     , requestTopP = Nothing
     , requestThinking = Nothing
+    , requestServiceTier = Nothing
     }
 
 -- | Smart constructor for a system block without cache control

@@ -93,8 +93,9 @@ instance Arbitrary CreateMessageRequest where
     maxTok <- choose (1, 4096)
     sys <- oneof [pure Nothing, Just <$> arbitrary]
     thinking <- oneof [pure Nothing, Just <$> arbitrary]
+    serviceTier <- oneof [pure Nothing, Just <$> elements ["standard", "priority"]]
     let req = mkRequest model msgs maxTok
-    pure $ req {requestSystem = sys, requestThinking = thinking}
+    pure $ req {requestSystem = sys, requestThinking = thinking, requestServiceTier = serviceTier}
 
 -- Tests
 
