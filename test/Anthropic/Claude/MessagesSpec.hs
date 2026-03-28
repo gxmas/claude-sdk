@@ -69,6 +69,19 @@ spec = describe "Messages" $ do
           errorMessage (errorDetails err) `shouldBe` "Failed to parse error response"
         Right _ -> expectationFailure "Expected error"
 
+  describe "countTokens (parseResponse)" $ do
+    it "parses successful 200 token count response" $ do
+      let resp = mockSuccess sampleTokenCountJson
+      case parseResponse resp Nothing :: Either APIError TokenCount of
+        Right tc -> tokenCountInputTokens tc `shouldBe` 14
+        Left err -> expectationFailure $ "Expected success, got: " ++ show err
+
+    it "returns error for 400 response" $ do
+      let resp = mockError 400 "invalid_request_error" "messages must not be empty"
+      case parseResponse resp Nothing :: Either APIError TokenCount of
+        Left err -> errorKind err `shouldBe` InvalidRequestError
+        Right _ -> expectationFailure "Expected error"
+
   describe "extractRateLimitInfo" $ do
     it "extracts rate limit info from response headers" $ do
       let headers =

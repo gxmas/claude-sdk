@@ -11,6 +11,7 @@ module Anthropic.Claude.TestHelpers
 
     -- * Sample JSON Bodies
   , sampleMessageResponseJson
+  , sampleTokenCountJson
   , sampleBatchResponseJson
   , sampleBatchEndedJson
 
@@ -88,6 +89,14 @@ sampleMessageResponseJson =
             [ "input_tokens" Aeson..= (15 :: Int)
             , "output_tokens" Aeson..= (8 :: Int)
             ]
+      ]
+
+-- | Sample TokenCount JSON.
+sampleTokenCountJson :: LBS.ByteString
+sampleTokenCountJson =
+  Aeson.encode
+    $ Aeson.object
+      [ "input_tokens" Aeson..= (14 :: Int)
       ]
 
 -- | Sample BatchResponse JSON (in_progress).

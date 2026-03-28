@@ -17,6 +17,7 @@ module Anthropic.Claude.Types.Response
     MessageResponse (..)
   , Usage (..)
   , APIResponse (..)
+  , TokenCount (..)
 
     -- * Helper Functions
   , extractText
@@ -100,6 +101,20 @@ instance ToJSON a => ToJSON (APIResponse a) where
              , "request_id" .= reqId
              ]
       _ -> []
+
+-- | Token count result from the count_tokens endpoint
+newtype TokenCount = TokenCount
+  { tokenCountInputTokens :: Int
+  -- ^ Number of input tokens
+  }
+  deriving (Eq, Show, Generic)
+
+instance FromJSON TokenCount where
+  parseJSON = genericParseJSON (prefixOptions "tokenCount")
+
+instance ToJSON TokenCount where
+  toJSON = genericToJSON (prefixOptions "tokenCount")
+  toEncoding = genericToEncoding (prefixOptions "tokenCount")
 
 -- | Extract text content from a message response
 --

@@ -37,6 +37,9 @@ instance Arbitrary MessageResponse where
       <*> (Just <$> genText)
       <*> arbitrary
 
+instance Arbitrary TokenCount where
+  arbitrary = TokenCount <$> choose (0, 100000)
+
 instance Arbitrary a => Arbitrary (APIResponse a) where
   arbitrary =
     APIResponse
@@ -79,6 +82,20 @@ spec = describe "Types.Response" $ do
     it "round-trips through JSON"
       $ property
       $ \(resp :: APIResponse MessageResponse) -> decode (encode resp) === Just resp
+
+  describe "TokenCount" $ do
+    it "parses from JSON" $ do
+      let json = "{\"input_tokens\":42}"
+      decode json `shouldBe` Just (TokenCount 42)
+
+    it "encodes to JSON with snake_case" $ do
+      let tc = TokenCount 100
+          jsonText = T.pack $ show $ encode tc
+      T.isInfixOf "input_tokens" jsonText `shouldBe` True
+
+    it "round-trips through JSON"
+      $ property
+      $ \(tc :: TokenCount) -> decode (encode tc) === Just tc
 
   describe "Helper Functions" $ do
     it "extractText concatenates text blocks" $ do

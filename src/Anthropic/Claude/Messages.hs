@@ -19,6 +19,7 @@ according to the retry policy configured in 'ClientEnv'.
 -}
 module Anthropic.Claude.Messages
   ( createMessage
+  , countTokens
   ) where
 
 import Anthropic.Claude.Internal.HTTP
@@ -131,6 +132,94 @@ createMessage env req = withRetry env $ liftIO $ do
         $ Right
         $ APIResponse
           { apiResponseBody = msgResponse
+          , apiResponseRateLimitInfo = rateLimitInfo
+          , apiResponseRequestId = requestId
+          }
+
+-- | Count tokens in a message request without running inference
+--
+-- Sends the request to the token counting endpoint and returns the
+-- estimated number of input tokens. This is free to use but subject
+-- to rate limits.
+--
+-- Example:
+-- @
+-- let req = mkRequest claude4Sonnet [userMsg "Hello!"] 1024
+-- result <- countTokens env req
+-- case result of
+--   Left err -> print err
+--   Right response -> print (tokenCountInputTokens (apiResponseBody response))
+-- @
+countTokens
+  :: MonadUnliftIO m
+  => ClientEnv
+  -> CreateMessageRequest
+  -> m (Either APIError (APIResponse TokenCount))
+countTokens env req = withRetry env $ liftIO $ do
+  let handler = clientEventHandler env
+      logSettings = clientLogSettings env
+      path = "/v1/messages/count_tokens"
+      methodTxt = "POST"
+      pathTxt = T.pack path
+
+  -- Build request body
+  let bodyBS = Aeson.encode req
+
+  -- Emit request event + log
+  startTime <- getCurrentTime
+  emitEvent handler
+    $ HttpRequest
+      HttpRequestEvent
+        { reqMethod = methodTxt
+        , reqPath = pathTxt
+        , reqTimestamp = startTime
+        }
+  logHttpRequest logSettings methodTxt pathTxt bodyBS
+
+  -- Execute request
+  httpReq <- buildRequest env methodPost path (RequestBodyLBS bodyBS)
+  httpResp <- executeRequest (clientManager env) httpReq
+
+  -- Extract request ID from headers
+  let headers = HTTP.responseHeaders httpResp
+      requestId =
+        lookup "request-id" headers >>= \rid ->
+          case TE.decodeUtf8' rid of
+            Right txt -> Just (RequestId txt)
+            Left _ -> Nothing
+      rateLimitInfo = extractRateLimitInfo headers
+      respStatus = statusCode (HTTP.responseStatus httpResp)
+      respBody = HTTP.responseBody httpResp
+
+  -- Emit response event + log
+  endTime <- getCurrentTime
+  let duration = diffUTCTime endTime startTime
+  emitEvent handler
+    $ HttpResponse
+      HttpResponseEvent
+        { respStatusCode = respStatus
+        , respDuration = duration
+        , respRequestId = requestId
+        , respRateLimitInfo = rateLimitInfo
+        }
+  logHttpResponse
+    logSettings
+    methodTxt
+    pathTxt
+    respStatus
+    duration
+    requestId
+    rateLimitInfo
+    (Just respBody)
+
+  -- Parse response
+  case parseResponse httpResp requestId of
+    Left apiError -> pure $ Left apiError
+    Right tokenCount ->
+      pure
+        $ Right
+        $ APIResponse
+          { apiResponseBody = tokenCount
           , apiResponseRateLimitInfo = rateLimitInfo
           , apiResponseRequestId = requestId
           }
