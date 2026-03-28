@@ -29,6 +29,19 @@ module Anthropic.Claude.Types.Request
   , mkRequest
   , systemBlock
   , cachedSystemBlock
+
+    -- * Request Builder Combinators
+  , withMetadata
+  , withStopSequences
+  , withStreaming
+  , withSystem
+  , withTemperature
+  , withToolChoice
+  , withTools
+  , withTopK
+  , withTopP
+  , withThinking
+  , withServiceTier
   ) where
 
 import Anthropic.Claude.Internal.JSON
@@ -318,9 +331,12 @@ assistantMsgBlocks blocks = Message Assistant (BlocksContent blocks)
 
 -- | Helper: Create a minimal request
 --
--- Example:
+-- Use with builder combinators for optional fields:
+--
 -- @
 -- let req = mkRequest claude4Sonnet [userMsg "Hello"] 1024
+--         & withSystem (SystemText "Be helpful.")
+--         & withTemperature 0.7
 -- @
 mkRequest :: ModelId -> [Message] -> Int -> CreateMessageRequest
 mkRequest model messages maxTokens =
@@ -348,3 +364,51 @@ systemBlock txt = SystemBlock txt Nothing
 -- | Smart constructor for a cached system block (ephemeral cache control)
 cachedSystemBlock :: Text -> SystemBlock
 cachedSystemBlock txt = SystemBlock txt (Just ephemeralCacheControl)
+
+-- ---------------------------------------------------------------------
+-- Request Builder Combinators
+-- ---------------------------------------------------------------------
+
+-- | Set user-defined metadata on a request
+withMetadata :: Value -> CreateMessageRequest -> CreateMessageRequest
+withMetadata v req = req {requestMetadata = Just v}
+
+-- | Set custom stop sequences on a request
+withStopSequences :: [Text] -> CreateMessageRequest -> CreateMessageRequest
+withStopSequences ss req = req {requestStopSequences = Just ss}
+
+-- | Enable streaming on a request
+withStreaming :: CreateMessageRequest -> CreateMessageRequest
+withStreaming req = req {requestStream = Just True}
+
+-- | Set a system prompt on a request
+withSystem :: SystemContent -> CreateMessageRequest -> CreateMessageRequest
+withSystem s req = req {requestSystem = Just s}
+
+-- | Set the sampling temperature (0.0–1.0)
+withTemperature :: Double -> CreateMessageRequest -> CreateMessageRequest
+withTemperature t req = req {requestTemperature = Just t}
+
+-- | Set the tool selection strategy
+withToolChoice :: ToolChoice -> CreateMessageRequest -> CreateMessageRequest
+withToolChoice tc req = req {requestToolChoice = Just tc}
+
+-- | Set the available tools
+withTools :: [Tool] -> CreateMessageRequest -> CreateMessageRequest
+withTools ts req = req {requestTools = Just ts}
+
+-- | Set the top-k sampling parameter
+withTopK :: Int -> CreateMessageRequest -> CreateMessageRequest
+withTopK k req = req {requestTopK = Just k}
+
+-- | Set the nucleus sampling parameter (0.0–1.0)
+withTopP :: Double -> CreateMessageRequest -> CreateMessageRequest
+withTopP p req = req {requestTopP = Just p}
+
+-- | Set extended thinking configuration
+withThinking :: ThinkingConfig -> CreateMessageRequest -> CreateMessageRequest
+withThinking tc req = req {requestThinking = Just tc}
+
+-- | Set the service tier
+withServiceTier :: Text -> CreateMessageRequest -> CreateMessageRequest
+withServiceTier t req = req {requestServiceTier = Just t}

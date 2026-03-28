@@ -8,7 +8,8 @@ import Anthropic.Claude.Types.ContentBlock (CacheControl (..), ContentBlock (..)
 import Anthropic.Claude.Types.Core
 import Anthropic.Claude.Types.Request
 import Anthropic.Claude.Types.Schema
-import Data.Aeson (decode, encode)
+import Data.Aeson (decode, encode, object, (.=))
+import Data.Function ((&))
 import qualified Data.Text as T
 import Test.Hspec
 import Test.QuickCheck
@@ -273,3 +274,73 @@ spec = describe "Types.Request" $ do
 
     it "cachedSystemBlock uses ephemeral cache control" $ do
       systemBlockCacheControl (cachedSystemBlock "test") `shouldBe` Just (CacheControl "ephemeral")
+
+  describe "Request Builder Combinators" $ do
+    let base = mkRequest claude4Sonnet [userMsg "test"] 1024
+
+    it "withMetadata sets metadata" $ do
+      let meta = object ["user_id" .= ("u123" :: T.Text)]
+          req = withMetadata meta base
+      requestMetadata req `shouldBe` Just meta
+
+    it "withStopSequences sets stop sequences" $ do
+      let req = withStopSequences ["stop", "end"] base
+      requestStopSequences req `shouldBe` Just ["stop", "end"]
+
+    it "withStreaming enables streaming" $ do
+      let req = withStreaming base
+      requestStream req `shouldBe` Just True
+
+    it "withSystem sets system prompt" $ do
+      let req = withSystem (SystemText "Be helpful.") base
+      requestSystem req `shouldBe` Just (SystemText "Be helpful.")
+
+    it "withTemperature sets temperature" $ do
+      let req = withTemperature 0.7 base
+      requestTemperature req `shouldBe` Just 0.7
+
+    it "withToolChoice sets tool choice" $ do
+      let req = withToolChoice AutoChoice base
+      requestToolChoice req `shouldBe` Just AutoChoice
+
+    it "withTools sets tools" $ do
+      let tool = Tool "test" (Just "A test") stringSchema Nothing
+          req = withTools [tool] base
+      requestTools req `shouldBe` Just [tool]
+
+    it "withTopK sets top-k" $ do
+      let req = withTopK 40 base
+      requestTopK req `shouldBe` Just 40
+
+    it "withTopP sets top-p" $ do
+      let req = withTopP 0.9 base
+      requestTopP req `shouldBe` Just 0.9
+
+    it "withThinking sets thinking config" $ do
+      let req = withThinking (ThinkingEnabled 10000) base
+      requestThinking req `shouldBe` Just (ThinkingEnabled 10000)
+
+    it "withServiceTier sets service tier" $ do
+      let req = withServiceTier "priority" base
+      requestServiceTier req `shouldBe` Just "priority"
+
+    it "combinators compose via (&)" $ do
+      let req = base
+              & withSystem (SystemText "Be helpful.")
+              & withTemperature 0.7
+              & withStreaming
+      requestSystem req `shouldBe` Just (SystemText "Be helpful.")
+      requestTemperature req `shouldBe` Just 0.7
+      requestStream req `shouldBe` Just True
+
+    it "later combinator overrides earlier" $ do
+      let req = base
+              & withTemperature 0.5
+              & withTemperature 0.9
+      requestTemperature req `shouldBe` Just 0.9
+
+    it "preserves base request fields" $ do
+      let req = base & withTemperature 0.7
+      requestModel req `shouldBe` claude4Sonnet
+      requestMessages req `shouldBe` [userMsg "test"]
+      requestMaxTokens req `shouldBe` 1024
