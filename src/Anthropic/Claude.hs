@@ -55,6 +55,7 @@ forEachEvent env req $ \\evt -> case evt of
   ContentBlockDelta payload ->
     case contentBlockDeltaDelta payload of
       TextDelta txt -> putStr (T.unpack txt)
+      ThinkingDelta thinking -> putStr (T.unpack thinking)
       _ -> pure ()
   _ -> pure ()
 @

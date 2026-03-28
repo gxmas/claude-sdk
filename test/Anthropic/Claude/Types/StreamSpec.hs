@@ -22,6 +22,8 @@ instance Arbitrary ContentDelta where
     oneof
       [ TextDelta <$> genText
       , InputJsonDelta <$> genText
+      , ThinkingDelta <$> genText
+      , SignatureDelta <$> genText
       ]
 
 instance Arbitrary Usage where
@@ -51,6 +53,14 @@ spec = describe "Types.Stream" $ do
     it "parses InputJsonDelta from JSON" $ do
       let json = "{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"key\\\"\"}"
       decode json `shouldBe` Just (InputJsonDelta "{\"key\"")
+
+    it "parses ThinkingDelta from JSON" $ do
+      let json = "{\"type\":\"thinking_delta\",\"thinking\":\"Let me think...\"}"
+      decode json `shouldBe` Just (ThinkingDelta "Let me think...")
+
+    it "parses SignatureDelta from JSON" $ do
+      let json = "{\"type\":\"signature_delta\",\"signature\":\"sig_abc123\"}"
+      decode json `shouldBe` Just (SignatureDelta "sig_abc123")
 
     it "round-trips through JSON"
       $ property

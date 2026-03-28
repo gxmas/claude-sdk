@@ -66,6 +66,13 @@ instance Arbitrary ToolChoice where
       , ToolChoice <$> genText
       ]
 
+instance Arbitrary ThinkingConfig where
+  arbitrary =
+    oneof
+      [ ThinkingEnabled <$> choose (1, 100000)
+      , pure ThinkingDisabled
+      ]
+
 instance Arbitrary SystemBlock where
   arbitrary =
     SystemBlock
@@ -85,8 +92,9 @@ instance Arbitrary CreateMessageRequest where
     msgs <- listOf1 arbitrary
     maxTok <- choose (1, 4096)
     sys <- oneof [pure Nothing, Just <$> arbitrary]
+    thinking <- oneof [pure Nothing, Just <$> arbitrary]
     let req = mkRequest model msgs maxTok
-    pure $ req {requestSystem = sys}
+    pure $ req {requestSystem = sys, requestThinking = thinking}
 
 -- Tests
 
@@ -175,6 +183,19 @@ spec = describe "Types.Request" $ do
     it "round-trips through JSON"
       $ property
       $ \(tc :: ToolChoice) -> decode (encode tc) === Just tc
+
+  describe "ThinkingConfig" $ do
+    it "encodes ThinkingEnabled correctly" $ do
+      let json = "{\"budget_tokens\":10000,\"type\":\"enabled\"}"
+      decode json `shouldBe` Just (ThinkingEnabled 10000)
+
+    it "encodes ThinkingDisabled correctly" $ do
+      let json = "{\"type\":\"disabled\"}"
+      decode json `shouldBe` Just ThinkingDisabled
+
+    it "round-trips through JSON"
+      $ property
+      $ \(tc :: ThinkingConfig) -> decode (encode tc) === Just tc
 
   describe "CreateMessageRequest" $ do
     it "round-trips through JSON"

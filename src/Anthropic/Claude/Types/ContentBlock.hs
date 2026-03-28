@@ -13,7 +13,7 @@ a single piece of content in a message (text, image, tool use, or tool result).
 
 This module contains:
 
-* 'ContentBlock' and its 4 constructors (TextBlock, ImageBlock, ToolUseBlock, ToolResultBlock)
+* 'ContentBlock' and its 5 constructors (TextBlock, ImageBlock, ToolUseBlock, ToolResultBlock, ThinkingBlock)
 * Direct dependencies of ContentBlock (CacheControl, ImageSource, ToolResultContent, ToolUseInput)
 * Helper constructors and combinators
 -}
@@ -31,6 +31,7 @@ module Anthropic.Claude.Types.ContentBlock
   , toolUseBlock
   , toolResultText
   , toolResultBlocks
+  , thinkingBlock
 
     -- * Cache Control Helpers
   , withCacheControl
@@ -156,6 +157,7 @@ instance ToJSON ToolUseInput where
 -- * 'ImageBlock' - Image for vision capabilities
 -- * 'ToolUseBlock' - Request to use a tool (in assistant messages)
 -- * 'ToolResultBlock' - Tool execution result (in user messages)
+-- * 'ThinkingBlock' - Chain-of-thought reasoning (when extended thinking is enabled)
 data ContentBlock
   = TextBlock
       { blockText :: Text
@@ -189,6 +191,14 @@ data ContentBlock
       , blockCacheControl :: Maybe CacheControl
       -- ^ Cache control for prompt caching
       }
+  | ThinkingBlock
+      { blockThinking :: Text
+      -- ^ Thinking text (may be empty if redacted)
+      , blockSignature :: Text
+      -- ^ Opaque verification signature
+      , blockCacheControl :: Maybe CacheControl
+      -- ^ Cache control for prompt caching
+      }
   deriving (Eq, Show, Generic)
 
 instance FromJSON ContentBlock where
@@ -212,6 +222,11 @@ instance FromJSON ContentBlock where
         <$> obj .: "tool_use_id"
         <*> obj .: "content"
         <*> obj .:? "is_error"
+        <*> obj .:? "cache_control"
+    "thinking" ->
+      ThinkingBlock
+        <$> obj .: "thinking"
+        <*> obj .: "signature"
         <*> obj .:? "cache_control"
     other -> fail $ "Unknown ContentBlock type: " <> T.unpack other
 
@@ -246,6 +261,14 @@ instance ToJSON ContentBlock where
         , Just ("tool_use_id" .= toolId)
         , Just ("content" .= result)
         , ("is_error" .=) <$> isErr
+        , ("cache_control" .=) <$> cc
+        ]
+  toJSON (ThinkingBlock thinking sig cc) =
+    object
+      $ catMaybes
+        [ Just ("type" .= ("thinking" :: Text))
+        , Just ("thinking" .= thinking)
+        , Just ("signature" .= sig)
         , ("cache_control" .=) <$> cc
         ]
 
@@ -284,6 +307,10 @@ toolResultText tid txt e = ToolResultBlock tid (ToolResultText txt) e Nothing
 -- @
 toolResultBlocks :: ToolCallId -> [ContentBlock] -> Maybe Bool -> ContentBlock
 toolResultBlocks tid blocks e = ToolResultBlock tid (ToolResultBlocks blocks) e Nothing
+
+-- | Smart constructor for thinking blocks
+thinkingBlock :: Text -> Text -> ContentBlock
+thinkingBlock thinking sig = ThinkingBlock thinking sig Nothing
 
 -- | Add cache control to any content block
 withCacheControl :: CacheControl -> ContentBlock -> ContentBlock

@@ -18,6 +18,7 @@ module Anthropic.Claude.Types.Request
   , MessageContent (..)
   , Tool (..)
   , ToolChoice (..)
+  , ThinkingConfig (..)
   , SystemContent (..)
   , SystemBlock (..)
 
@@ -107,6 +108,32 @@ instance ToJSON Tool where
         , Just ("input_schema" .= schema)
         , ("cache_control" .=) <$> cc
         ]
+
+-- | Extended thinking configuration
+--
+-- When enabled, Claude will show chain-of-thought reasoning before answering.
+-- The budget_tokens parameter controls the maximum number of thinking tokens.
+data ThinkingConfig
+  = -- | Enable extended thinking with a token budget
+    ThinkingEnabled {thinkingBudgetTokens :: Int}
+  | -- | Disable extended thinking
+    ThinkingDisabled
+  deriving (Eq, Show, Generic)
+
+instance FromJSON ThinkingConfig where
+  parseJSON = withDiscriminator "type" $ \typeField obj -> case typeField of
+    "enabled" -> ThinkingEnabled <$> obj .: "budget_tokens"
+    "disabled" -> pure ThinkingDisabled
+    other -> fail $ "Unknown ThinkingConfig type: " <> T.unpack other
+
+instance ToJSON ThinkingConfig where
+  toJSON (ThinkingEnabled budget) =
+    object
+      [ "type" .= ("enabled" :: Text)
+      , "budget_tokens" .= budget
+      ]
+  toJSON ThinkingDisabled =
+    object ["type" .= ("disabled" :: Text)]
 
 -- | Tool choice strategy
 data ToolChoice
@@ -208,6 +235,8 @@ data CreateMessageRequest = CreateMessageRequest
   -- ^ Top-k sampling parameter
   , requestTopP :: Maybe Double
   -- ^ Nucleus sampling parameter (0.0-1.0)
+  , requestThinking :: Maybe ThinkingConfig
+  -- ^ Extended thinking configuration
   }
   deriving (Eq, Show, Generic)
 
@@ -225,6 +254,7 @@ instance FromJSON CreateMessageRequest where
     tools <- obj .:? "tools"
     topK <- obj .:? "top_k"
     topP <- obj .:? "top_p"
+    thinking <- obj .:? "thinking"
 
     -- Validation
     if null messages
@@ -247,9 +277,10 @@ instance FromJSON CreateMessageRequest where
                 tools
                 topK
                 topP
+                thinking
 
 instance ToJSON CreateMessageRequest where
-  toJSON (CreateMessageRequest model messages maxTokens metadata stopSeqs stream system temp toolChoice tools topK topP) =
+  toJSON (CreateMessageRequest model messages maxTokens metadata stopSeqs stream system temp toolChoice tools topK topP thinking) =
     object
       $ [ "model" .= model
         , "messages" .= messages
@@ -265,6 +296,7 @@ instance ToJSON CreateMessageRequest where
           , ("tools" .=) <$> tools
           , ("top_k" .=) <$> topK
           , ("top_p" .=) <$> topP
+          , ("thinking" .=) <$> thinking
           ]
 
 -- | Helper: Create a user message with text content
@@ -300,6 +332,7 @@ mkRequest model messages maxTokens =
     , requestTools = Nothing
     , requestTopK = Nothing
     , requestTopP = Nothing
+    , requestThinking = Nothing
     }
 
 -- | Smart constructor for a system block without cache control

@@ -202,6 +202,8 @@ updateMessageResponse (ContentBlockDelta payload) resp =
           content' = updateContentAt idx (appendText txt) (responseContent resp)
        in resp {responseContent = content'}
     InputJsonDelta _ -> resp
+    ThinkingDelta _ -> resp
+    SignatureDelta _ -> resp
 updateMessageResponse (MessageDelta payload) resp =
   let delta = messageDeltaDelta payload
       usage = messageDeltaUsage payload

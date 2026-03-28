@@ -43,12 +43,18 @@ data ContentDelta
     TextDelta Text
   | -- | Incremental JSON fragment for tool input
     InputJsonDelta Text
+  | -- | Incremental thinking text (extended thinking)
+    ThinkingDelta Text
+  | -- | Incremental signature data (extended thinking)
+    SignatureDelta Text
   deriving (Eq, Show, Generic)
 
 instance FromJSON ContentDelta where
   parseJSON = withDiscriminator "type" $ \typeField obj -> case typeField of
     "text_delta" -> TextDelta <$> obj .: "text"
     "input_json_delta" -> InputJsonDelta <$> obj .: "partial_json"
+    "thinking_delta" -> ThinkingDelta <$> obj .: "thinking"
+    "signature_delta" -> SignatureDelta <$> obj .: "signature"
     other -> fail $ "Unknown ContentDelta type: " <> T.unpack other
 
 instance ToJSON ContentDelta where
@@ -58,6 +64,12 @@ instance ToJSON ContentDelta where
   toJSON (InputJsonDelta json) =
     object
       ["type" .= ("input_json_delta" :: Text), "partial_json" .= json]
+  toJSON (ThinkingDelta thinking) =
+    object
+      ["type" .= ("thinking_delta" :: Text), "thinking" .= thinking]
+  toJSON (SignatureDelta sig) =
+    object
+      ["type" .= ("signature_delta" :: Text), "signature" .= sig]
 
 -- | Payload for a @message_start@ event.
 data MessageStartPayload = MessageStartPayload

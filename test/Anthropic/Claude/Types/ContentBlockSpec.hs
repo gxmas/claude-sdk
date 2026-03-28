@@ -54,6 +54,7 @@ instance Arbitrary ContentBlock where
       , ImageBlock <$> arbitrary <*> arbitrary
       , ToolUseBlock <$> arbitrary <*> genText <*> arbitrary <*> arbitrary
       , ToolResultBlock <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+      , ThinkingBlock <$> genText <*> genText <*> arbitrary
       ]
    where
     genText = T.pack <$> listOf1 (elements ['a' .. 'z'])
@@ -156,6 +157,16 @@ spec = describe "Types.ContentBlock" $ do
         Just (ToolResultBlock _ _ _ _) -> pure ()
         _ -> expectationFailure "Failed to roundtrip ToolResultBlock"
 
+    it "parses ThinkingBlock from JSON" $ do
+      let json = "{\"type\":\"thinking\",\"thinking\":\"Let me reason...\",\"signature\":\"sig123\"}"
+      decode json `shouldBe` Just (ThinkingBlock "Let me reason..." "sig123" Nothing)
+
+    it "encodes ThinkingBlock with correct type field" $ do
+      let block = ThinkingBlock "reasoning" "sig" Nothing
+      case decode (encode block) of
+        Just (ThinkingBlock _ _ _) -> pure ()
+        _ -> expectationFailure "Failed to roundtrip ThinkingBlock"
+
     it "round-trips through JSON"
       $ property
       $ \(block :: ContentBlock) -> decode (encode block) === Just block
@@ -179,6 +190,10 @@ spec = describe "Types.ContentBlock" $ do
     it "toolResultBlocks creates ToolResultBlock with blocks content" $ do
       let block = toolResultBlocks (ToolCallId "id") [textBlock "result"] (Just False)
       block `shouldBe` ToolResultBlock (ToolCallId "id") (ToolResultBlocks [textBlock "result"]) (Just False) Nothing
+
+    it "thinkingBlock creates ThinkingBlock" $ do
+      let block = thinkingBlock "reasoning" "sig123"
+      block `shouldBe` ThinkingBlock "reasoning" "sig123" Nothing
 
   describe "ToolUseInput" $ do
     it "parses JSON object as ToolUseInput" $ do
